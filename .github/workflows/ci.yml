@@ -37,7 +37,7 @@ jobs:
         run: uv run pytest -q --cov --cov-report=term --cov-report=xml
       - name: Chat eval sets (offline)
         run: uv run python scripts/live_eval.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.xml
@@ -63,7 +63,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SBOM (CycloneDX)
         run: uvx --from cyclonedx-bom==5.1.1 cyclonedx-py requirements requirements-prod.lock --of JSON -o sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.cdx.json
