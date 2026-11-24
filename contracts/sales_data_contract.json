@@ -1,0 +1,447 @@
+{
+  "contract_version": "1.0.0",
+  "dataset": "dua_kelinci_sales_lines",
+  "owner": "Bagus Kurnianto Labamu",
+  "input": {
+    "path": "data/raw/sales_raw.csv",
+    "sha256": "48b9f90ddaa91e0033ada4feb3cb47a8aaf490774165d266223be1da34e6741f",
+    "immutable": true,
+    "format": "CSV, UTF-8 (BOM, UTF-16 dan cp1252 juga dibaca), pemisah koma/titik koma/tab terdeteksi otomatis; .xlsx sheet pertama",
+    "grain": "satu baris produk (SKU) pada satu dokumen penjualan atau retur",
+    "columns": [
+      {
+        "name": "date",
+        "type": "date",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "invoice_no",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "region",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "branch",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "outlet_id",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "outlet_name",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "outlet_type",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "salesman",
+        "type": "string",
+        "required": true,
+        "blank_allowed": true
+      },
+      {
+        "name": "brand",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "sku",
+        "type": "string",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "qty_carton",
+        "type": "integer",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "price_per_carton_idr",
+        "type": "integer",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "gross_sales_idr",
+        "type": "integer",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "discount_idr",
+        "type": "integer",
+        "required": true,
+        "blank_allowed": false
+      },
+      {
+        "name": "net_sales_idr",
+        "type": "integer",
+        "required": true,
+        "blank_allowed": false
+      }
+    ],
+    "invoice_pattern": "^(INV|RTR)\\d{6}$",
+    "canonical_regions": [
+      "Jabodetabek",
+      "Jawa Barat",
+      "Jawa Tengah",
+      "Jawa Timur",
+      "Sumatera",
+      "Kalimantan"
+    ],
+    "region_aliases": {
+      "JABAR": "Jawa Barat",
+      "JATENG": "Jawa Tengah",
+      "JATIM": "Jawa Timur",
+      "SUMATRA": "Sumatera"
+    },
+    "outlet_types": [
+      "Grosir",
+      "Minimarket",
+      "Toko Kelontong",
+      "Warung"
+    ],
+    "discount_rates_pct": [
+      0,
+      2,
+      3,
+      5
+    ],
+    "discount_rounding_idr": 100,
+    "expected_period": [
+      "2026-09-01",
+      "2026-10-31"
+    ]
+  },
+  "outputs": {
+    "fact_sales_line": {
+      "primary_key": "line_id",
+      "columns": [
+        "line_id",
+        "date_key",
+        "date",
+        "year_month",
+        "invoice_no",
+        "document_type",
+        "is_return",
+        "outlet_id",
+        "geo_key",
+        "region",
+        "branch",
+        "salesman_code",
+        "salesman",
+        "sku_code",
+        "brand",
+        "sku",
+        "qty_carton",
+        "price_per_carton_idr",
+        "gross_sales_idr",
+        "discount_idr",
+        "net_sales_idr",
+        "discount_rate_pct",
+        "dq_salesman_inferred",
+        "dq_return_unmatched",
+        "dq_late_numbered_invoice",
+        "dq_suspect_outlet",
+        "dq_non_trading_day",
+        "dq_outlet_name_shared_in_branch",
+        "dq_discount_off_pattern",
+        "dq_price_off_list",
+        "dq_brand_mismatch",
+        "dq_outlet_attr_conflict",
+        "dq_branch_region_conflict",
+        "dq_salesman_branch_conflict",
+        "dq_invoice_header_conflict",
+        "dq_repeated_sku_in_invoice",
+        "dq_multi_invoice_day",
+        "dq_out_of_period",
+        "dq_flags"
+      ]
+    },
+    "dim_outlet": {
+      "columns": [
+        "outlet_id",
+        "outlet_name",
+        "outlet_type",
+        "branch",
+        "region"
+      ]
+    },
+    "dim_product": {
+      "columns": [
+        "sku_code",
+        "sku",
+        "brand",
+        "pack_size_g",
+        "list_price_per_carton_idr"
+      ]
+    },
+    "dim_salesman": {
+      "columns": [
+        "salesman_code",
+        "salesman",
+        "branch"
+      ]
+    },
+    "dim_geo": {
+      "columns": [
+        "geo_key",
+        "branch",
+        "region"
+      ]
+    },
+    "dim_date": {
+      "columns": [
+        "date_key",
+        "day_name_id"
+      ]
+    }
+  },
+  "guarantees": [
+    "rows_in == rows_clean + rows_quarantined",
+    "gross_sales_idr == qty_carton * price_per_carton_idr pada setiap baris fact",
+    "net_sales_idr == gross_sales_idr - discount_idr pada setiap baris fact",
+    "is_return == (qty_carton < 0)",
+    "region hanya berisi 6 nama baku",
+    "rekonsiliasi mentah ke bersih per bulan dan region selisih 0 rupiah",
+    "dua kali menjalankan pipeline menghasilkan file yang sama (hash sama)"
+  ],
+  "rules": [
+    {
+      "id": "DQ-01",
+      "title": "Skema kolom: 15 kolom wajib dengan nama yang dikenal",
+      "severity": "high",
+      "level": "file",
+      "action": "rejected",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-02",
+      "title": "Format nilai: tanggal ISO, angka bulat, nomor invoice, kolom wajib terisi",
+      "severity": "high",
+      "level": "row",
+      "action": "quarantined",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-03",
+      "title": "Penulisan region tidak baku (huruf besar/kecil, singkatan)",
+      "severity": "medium",
+      "level": "row",
+      "action": "fixed",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-04",
+      "title": "Spasi di awal/akhir teks (misalnya outlet_name)",
+      "severity": "low",
+      "level": "row",
+      "action": "fixed",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-05",
+      "title": "Salesman kosong",
+      "severity": "medium",
+      "level": "row",
+      "action": "inferred",
+      "flag_column": "dq_salesman_inferred"
+    },
+    {
+      "id": "DQ-06",
+      "title": "Baris duplikat persis dalam invoice yang sama",
+      "severity": "high",
+      "level": "row",
+      "action": "quarantined",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-07",
+      "title": "Baris retur (dokumen RTR, qty dan nilai negatif)",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "is_return"
+    },
+    {
+      "id": "DQ-08",
+      "title": "Retur tanpa pembelian yang cukup di periode data",
+      "severity": "low",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_return_unmatched"
+    },
+    {
+      "id": "DQ-09",
+      "title": "Nomor invoice di luar urutan (nomor lebih besar dari invoice bertanggal lebih akhir)",
+      "severity": "medium",
+      "level": "invoice",
+      "action": "flagged",
+      "flag_column": "dq_late_numbered_invoice"
+    },
+    {
+      "id": "DQ-10",
+      "title": "Outlet yang hanya muncul di invoice di luar urutan",
+      "severity": "medium",
+      "level": "outlet",
+      "action": "flagged",
+      "flag_column": "dq_suspect_outlet"
+    },
+    {
+      "id": "DQ-11",
+      "title": "Transaksi di hari non-dagang (Minggu atau libur nasional)",
+      "severity": "low",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_non_trading_day"
+    },
+    {
+      "id": "DQ-12",
+      "title": "Nama outlet sama, outlet_id berbeda, di cabang yang sama",
+      "severity": "medium",
+      "level": "outlet",
+      "action": "flagged",
+      "flag_column": "dq_outlet_name_shared_in_branch"
+    },
+    {
+      "id": "DQ-13",
+      "title": "Nama outlet sama, outlet_id berbeda, di cabang berbeda",
+      "severity": "info",
+      "level": "outlet",
+      "action": "none",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-14",
+      "title": "gross_sales_idr = qty_carton x price_per_carton_idr",
+      "severity": "high",
+      "level": "row",
+      "action": "quarantined",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-15",
+      "title": "net_sales_idr = gross_sales_idr - discount_idr",
+      "severity": "high",
+      "level": "row",
+      "action": "quarantined",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-16",
+      "title": "Pola diskon: 0, 2, 3 atau 5 persen dari gross, dibulatkan ke Rp100 terdekat",
+      "severity": "low",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_discount_off_pattern"
+    },
+    {
+      "id": "DQ-17",
+      "title": "Satu harga per SKU",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_price_off_list"
+    },
+    {
+      "id": "DQ-18",
+      "title": "Satu brand per SKU",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_brand_mismatch"
+    },
+    {
+      "id": "DQ-19",
+      "title": "Atribut outlet stabil (nama, tipe, cabang, region per outlet_id)",
+      "severity": "medium",
+      "level": "outlet",
+      "action": "flagged",
+      "flag_column": "dq_outlet_attr_conflict"
+    },
+    {
+      "id": "DQ-20",
+      "title": "Satu region per cabang",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_branch_region_conflict"
+    },
+    {
+      "id": "DQ-21",
+      "title": "Salesman hanya di satu cabang",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_salesman_branch_conflict"
+    },
+    {
+      "id": "DQ-22",
+      "title": "Header invoice sama di semua baris (tanggal, outlet, cabang, region, salesman)",
+      "severity": "medium",
+      "level": "invoice",
+      "action": "flagged",
+      "flag_column": "dq_invoice_header_conflict"
+    },
+    {
+      "id": "DQ-23",
+      "title": "SKU tidak berulang dalam satu invoice (setelah duplikat persis dikarantina)",
+      "severity": "low",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_repeated_sku_in_invoice"
+    },
+    {
+      "id": "DQ-24",
+      "title": "Tanda qty sesuai jenis dokumen (INV positif, RTR negatif, tidak nol)",
+      "severity": "high",
+      "level": "row",
+      "action": "quarantined",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-25",
+      "title": "Lebih dari satu invoice penjualan per outlet per hari",
+      "severity": "info",
+      "level": "outlet",
+      "action": "flagged",
+      "flag_column": "dq_multi_invoice_day"
+    },
+    {
+      "id": "DQ-26",
+      "title": "Hari dagang (Senin-Sabtu) tanpa transaksi",
+      "severity": "info",
+      "level": "date",
+      "action": "none",
+      "flag_column": null
+    },
+    {
+      "id": "DQ-27",
+      "title": "Tanggal di luar periode yang diharapkan",
+      "severity": "medium",
+      "level": "row",
+      "action": "flagged",
+      "flag_column": "dq_out_of_period"
+    }
+  ]
+}
