@@ -52,6 +52,7 @@ packages = ["src/dk_sales"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+markers = ["e2e: browser tests (Playwright)"]
 
 [tool.coverage.run]
 source = ["dk_sales"]
