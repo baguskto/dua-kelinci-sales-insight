@@ -205,7 +205,15 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
         new = df[col].map(_norm_text)
         changed = new != df[col]
         for i in df.index[changed]:
-            log.add(df.at[i, "raw_row_id"], "DQ-04", col, repr(df.at[i, col]), repr(new[i]), "fixed", "Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus.")
+            log.add(
+                df.at[i, "raw_row_id"],
+                "DQ-04",
+                col,
+                repr(df.at[i, col]),
+                repr(new[i]),
+                "fixed",
+                "Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus.",
+            )
             ws_rows.add(i)
         df[col] = new
     stats["DQ-04"]["rows"] = len(ws_rows)
@@ -262,11 +270,21 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
             val = df.at[i, "region"]
             br = df.at[i, "branch"]
             if br in branch_region:
-                log.add(df.at[i, "raw_row_id"], "DQ-03", "region", val, branch_region[br], "inferred", f"Region '{val}' tidak dikenal; diambil dari region cabang {br}.")
+                log.add(
+                    df.at[i, "raw_row_id"],
+                    "DQ-03",
+                    "region",
+                    val,
+                    branch_region[br],
+                    "inferred",
+                    f"Region '{val}' tidak dikenal; diambil dari region cabang {br}.",
+                )
                 df.at[i, "region"] = branch_region[br]
                 region_rows += 1
             else:
-                log.add(df.at[i, "raw_row_id"], "DQ-03", "region", val, val, "flagged", f"Region '{val}' tidak dikenal dan cabang {br} tidak punya region baku.")
+                log.add(
+                    df.at[i, "raw_row_id"], "DQ-03", "region", val, val, "flagged", f"Region '{val}' tidak dikenal dan cabang {br} tidak punya region baku."
+                )
                 stats["DQ-03"]["remaining"] += 1
     stats["DQ-03"]["rows"] = region_rows
 
@@ -347,14 +365,30 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
             log.add(df.at[i, "raw_row_id"], "DQ-05", "salesman", "", ocand[0], "inferred", f"Outlet {out} hanya pernah dilayani {ocand[0]}.")
             continue
         unresolved += 1
-        log.add(df.at[i, "raw_row_id"], "DQ-05", "salesman", "", "", "flagged", f"Tidak ada bukti salesman: invoice {inv} tidak punya salesman lain, outlet {out} dilayani {len(ocand)} salesman.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-05",
+            "salesman",
+            "",
+            "",
+            "flagged",
+            f"Tidak ada bukti salesman: invoice {inv} tidak punya salesman lain, outlet {out} dilayani {len(ocand)} salesman.",
+        )
     stats["DQ-05"]["rows"] = len(blank)
     stats["DQ-05"]["remaining"] = unresolved
 
     # DQ-07 returns
     ret = df.index[df["is_return"]]
     for i in ret:
-        log.add(df.at[i, "raw_row_id"], "DQ-07", "invoice_no", df.at[i, "invoice_no"], df.at[i, "invoice_no"], "flagged", f"Dokumen retur, qty {df.at[i, 'qty_carton']}, net {df.at[i, 'net_sales_idr']}. Disimpan sebagai retur.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-07",
+            "invoice_no",
+            df.at[i, "invoice_no"],
+            df.at[i, "invoice_no"],
+            "flagged",
+            f"Dokumen retur, qty {df.at[i, 'qty_carton']}, net {df.at[i, 'net_sales_idr']}. Disimpan sebagai retur.",
+        )
     stats["DQ-07"]["rows"] = len(ret)
 
     # DQ-08 returns without enough prior purchases in the data
@@ -368,16 +402,19 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
             unmatched += 1
             df.at[i, "dq_return_unmatched"] = True
             invs = ", ".join(sorted(bought["invoice_no"].unique())) or "tidak ada"
-            log.add(df.at[i, "raw_row_id"], "DQ-08", "qty_carton", df.at[i, "qty_carton"], df.at[i, "qty_carton"], "flagged", f"Retur {abs(int(df.at[i, 'qty_carton']))} karton {s}, sedangkan pembelian outlet {o} untuk SKU ini sampai tanggal retur hanya {qty} karton (invoice: {invs}).")
+            log.add(
+                df.at[i, "raw_row_id"],
+                "DQ-08",
+                "qty_carton",
+                df.at[i, "qty_carton"],
+                df.at[i, "qty_carton"],
+                "flagged",
+                f"Retur {abs(int(df.at[i, 'qty_carton']))} karton {s}, sedangkan pembelian outlet {o} untuk SKU ini sampai tanggal retur hanya {qty} karton (invoice: {invs}).",
+            )
     stats["DQ-08"]["rows"] = unmatched
 
     # DQ-09 late-numbered invoices
-    inv = (
-        df.loc[df["invoice_no"].str.startswith(config.SALE_PREFIX)]
-        .groupby("invoice_no")
-        .agg(date=("date", "min"))
-        .reset_index()
-    )
+    inv = df.loc[df["invoice_no"].str.startswith(config.SALE_PREFIX)].groupby("invoice_no").agg(date=("date", "min")).reset_index()
     inv["num"] = inv["invoice_no"].str[3:].astype(int)
     inv = inv.sort_values(["date", "num"], kind="mergesort").reset_index(drop=True)
     in_seq = longest_increasing_subsequence(inv["num"].tolist())
@@ -416,7 +453,15 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
     suspect = sorted(by_outlet.index[by_outlet])
     for i in df.index[df["outlet_id"].isin(suspect)]:
         df.at[i, "dq_suspect_outlet"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-10", "outlet_id", df.at[i, "outlet_id"], df.at[i, "outlet_id"], "flagged", f"Outlet {df.at[i, 'outlet_id']} hanya muncul di invoice di luar urutan.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-10",
+            "outlet_id",
+            df.at[i, "outlet_id"],
+            df.at[i, "outlet_id"],
+            "flagged",
+            f"Outlet {df.at[i, 'outlet_id']} hanya muncul di invoice di luar urutan.",
+        )
     stats["DQ-10"]["rows"] = int(df["dq_suspect_outlet"].sum())
     stats["DQ-10"]["entities"] = len(suspect)
     stats["DQ-10"]["note"] = ", ".join(suspect)
@@ -445,7 +490,15 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
         o = df.at[i, "outlet_id"]
         peers = sorted(set(outlets.loc[(outlets["name"] == df.at[i, "outlet_name"]) & (outlets["branch"] == df.at[i, "branch"]), "outlet_id"]) - {o})
         df.at[i, "dq_outlet_name_shared_in_branch"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-12", "outlet_id", o, o, "flagged", f"Nama '{df.at[i, 'outlet_name']}' juga dipakai {', '.join(peers)} di cabang {df.at[i, 'branch']}.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-12",
+            "outlet_id",
+            o,
+            o,
+            "flagged",
+            f"Nama '{df.at[i, 'outlet_name']}' juga dipakai {', '.join(peers)} di cabang {df.at[i, 'branch']}.",
+        )
     stats["DQ-12"]["rows"] = int(df["dq_outlet_name_shared_in_branch"].sum())
     stats["DQ-12"]["entities"] = len(shared_same_branch)
     stats["DQ-12"]["note"] = ", ".join(sorted(shared_same_branch))
@@ -465,7 +518,15 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
         if not ok:
             off += 1
             df.at[i, "dq_discount_off_pattern"] = True
-            log.add(df.at[i, "raw_row_id"], "DQ-16", "discount_idr", disc, disc, "flagged", f"Diskon {disc} dari gross {g} tidak cocok dengan 0/2/3/5% dibulatkan ke Rp100.")
+            log.add(
+                df.at[i, "raw_row_id"],
+                "DQ-16",
+                "discount_idr",
+                disc,
+                disc,
+                "flagged",
+                f"Diskon {disc} dari gross {g} tidak cocok dengan 0/2/3/5% dibulatkan ke Rp100.",
+            )
     stats["DQ-16"]["rows"] = off
 
     # DQ-17 price per SKU, DQ-18 brand per SKU
@@ -518,29 +579,69 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
     ci, cids = outlet_conflicts(df)
     for i in ci:
         df.at[i, "dq_outlet_attr_conflict"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-19", "outlet_id", df.at[i, "outlet_id"], df.at[i, "outlet_id"], "flagged", "Atribut outlet berbeda dari nilai terbanyak untuk outlet_id ini.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-19",
+            "outlet_id",
+            df.at[i, "outlet_id"],
+            df.at[i, "outlet_id"],
+            "flagged",
+            "Atribut outlet berbeda dari nilai terbanyak untuk outlet_id ini.",
+        )
     stats["DQ-19"]["remaining"] = len(ci)
     br = branch_region_conflicts(df)
     for i in br:
         df.at[i, "dq_branch_region_conflict"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-20", "region", df.at[i, "region"], df.at[i, "region"], "flagged", f"Cabang {df.at[i, 'branch']} biasanya di region lain.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-20",
+            "region",
+            df.at[i, "region"],
+            df.at[i, "region"],
+            "flagged",
+            f"Cabang {df.at[i, 'branch']} biasanya di region lain.",
+        )
     stats["DQ-20"]["remaining"] = len(br)
     sb = salesman_branch_conflicts(df)
     for i in sb:
         df.at[i, "dq_salesman_branch_conflict"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-21", "salesman", df.at[i, "salesman"], df.at[i, "salesman"], "flagged", f"Salesman {df.at[i, 'salesman']} biasanya di cabang lain.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-21",
+            "salesman",
+            df.at[i, "salesman"],
+            df.at[i, "salesman"],
+            "flagged",
+            f"Salesman {df.at[i, 'salesman']} biasanya di cabang lain.",
+        )
     stats["DQ-21"]["remaining"] = len(sb)
     hi, hinv = header_conflicts(df)
     for i in hi:
         df.at[i, "dq_invoice_header_conflict"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-22", "invoice_no", df.at[i, "invoice_no"], df.at[i, "invoice_no"], "flagged", "Header baris ini berbeda dari baris lain di invoice yang sama.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-22",
+            "invoice_no",
+            df.at[i, "invoice_no"],
+            df.at[i, "invoice_no"],
+            "flagged",
+            "Header baris ini berbeda dari baris lain di invoice yang sama.",
+        )
     stats["DQ-22"]["remaining"] = len(hi)
 
     # DQ-23 SKU repeated inside an invoice after exact duplicates are gone
     rep = df.index[df.duplicated(subset=["invoice_no", "sku"], keep=False)]
     for i in rep:
         df.at[i, "dq_repeated_sku_in_invoice"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-23", "sku", df.at[i, "sku"], df.at[i, "sku"], "flagged", f"SKU muncul lebih dari sekali di invoice {df.at[i, 'invoice_no']} dengan angka berbeda.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-23",
+            "sku",
+            df.at[i, "sku"],
+            df.at[i, "sku"],
+            "flagged",
+            f"SKU muncul lebih dari sekali di invoice {df.at[i, 'invoice_no']} dengan angka berbeda.",
+        )
     stats["DQ-23"]["rows"] = len(rep)
     raw_rep = raw_view.duplicated(subset=["invoice_no", "sku"], keep=False).sum()
     stats["DQ-23"]["note"] = f"mentah: {int(raw_rep)} baris (semuanya duplikat persis DQ-06)"
@@ -549,14 +650,24 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
     s = df.loc[~df["is_return"]]
     cnt = s.groupby(["outlet_id", "date"])["invoice_no"].nunique()
     multi = cnt[cnt > 1]
-    for (o, d) in multi.index:
+    for o, d in multi.index:
         for i in s.index[(s["outlet_id"] == o) & (s["date"] == d)]:
             df.at[i, "dq_multi_invoice_day"] = True
-            log.add(df.at[i, "raw_row_id"], "DQ-25", "invoice_no", df.at[i, "invoice_no"], df.at[i, "invoice_no"], "flagged", f"Outlet {o} punya {int(multi[(o, d)])} invoice penjualan pada {d.date()}.")
+            log.add(
+                df.at[i, "raw_row_id"],
+                "DQ-25",
+                "invoice_no",
+                df.at[i, "invoice_no"],
+                df.at[i, "invoice_no"],
+                "flagged",
+                f"Outlet {o} punya {int(multi[(o, d)])} invoice penjualan pada {d.date()}.",
+            )
     stats["DQ-25"]["rows"] = int(df["dq_multi_invoice_day"].sum())
     stats["DQ-25"]["entities"] = len(multi)
     same_day_return = df.loc[df["is_return"]].merge(s, on=["outlet_id", "date"])
-    stats["DQ-25"]["note"] = f"{same_day_return['invoice_no_x'].nunique()} retur di hari yang sama dengan invoice penjualan outlet yang sama (bukan pelanggaran)"
+    stats["DQ-25"]["note"] = (
+        f"{same_day_return['invoice_no_x'].nunique()} retur di hari yang sama dengan invoice penjualan outlet yang sama (bukan pelanggaran)"
+    )
 
     # DQ-26 trading days without sales
     start, end = pd.Timestamp(period[0]), pd.Timestamp(period[1])
@@ -570,7 +681,15 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
     oop = df.index[(df["date"] < start) | (df["date"] > end)]
     for i in oop:
         df.at[i, "dq_out_of_period"] = True
-        log.add(df.at[i, "raw_row_id"], "DQ-27", "date", df.at[i, "date"].date(), df.at[i, "date"].date(), "flagged", f"Tanggal di luar periode {period[0]} s.d. {period[1]}.")
+        log.add(
+            df.at[i, "raw_row_id"],
+            "DQ-27",
+            "date",
+            df.at[i, "date"].date(),
+            df.at[i, "date"].date(),
+            "flagged",
+            f"Tanggal di luar periode {period[0]} s.d. {period[1]}.",
+        )
     stats["DQ-27"]["rows"] = len(oop)
 
     return _finish(df, raw, quarantine, log, stats, meta)

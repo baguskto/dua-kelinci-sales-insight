@@ -28,8 +28,7 @@ RULES: list[Rule] = [
         "high",
         "file",
         "rejected",
-        "File ditolak bila ada kolom wajib yang hilang. Nama kolom dinormalkan (huruf kecil, spasi jadi "
-        "garis bawah); kolom tambahan diabaikan dan dicatat.",
+        "File ditolak bila ada kolom wajib yang hilang. Nama kolom dinormalkan (huruf kecil, spasi jadi garis bawah); kolom tambahan diabaikan dan dicatat.",
     ),
     Rule(
         "DQ-02",
@@ -94,8 +93,7 @@ RULES: list[Rule] = [
         "low",
         "row",
         "flagged",
-        "Ditandai saja. Retur bisa berasal dari pembelian sebelum September 2026 yang tidak ada di file. "
-        "Perlu konfirmasi ke tim sales/finance.",
+        "Ditandai saja. Retur bisa berasal dari pembelian sebelum September 2026 yang tidak ada di file. Perlu konfirmasi ke tim sales/finance.",
         "dq_return_unmatched",
     ),
     Rule(
@@ -169,8 +167,7 @@ RULES: list[Rule] = [
         "low",
         "row",
         "flagged",
-        "Selisih sampai Rp40 terhadap persentase tepat adalah efek pembulatan ke Rp100, bukan kesalahan. "
-        "Baris di luar pola ditandai dq_discount_off_pattern.",
+        "Selisih sampai Rp40 terhadap persentase tepat adalah efek pembulatan ke Rp100, bukan kesalahan. Baris di luar pola ditandai dq_discount_off_pattern.",
         "dq_discount_off_pattern",
     ),
     Rule(
@@ -197,8 +194,7 @@ RULES: list[Rule] = [
         "medium",
         "outlet",
         "flagged",
-        "Di data mentah tidak stabil hanya karena DQ-03 dan DQ-04. Setelah perbaikan dicek ulang; sisa "
-        "perbedaan ditandai.",
+        "Di data mentah tidak stabil hanya karena DQ-03 dan DQ-04. Setelah perbaikan dicek ulang; sisa perbedaan ditandai.",
         "dq_outlet_attr_conflict",
     ),
     Rule(

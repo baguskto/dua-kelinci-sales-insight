@@ -150,8 +150,7 @@ def audit_markdown(build: BuildOutput) -> str:
         "Dibuat otomatis oleh `make data`. Setiap aturan punya id tetap (DQ-01 sampai DQ-27) yang dipakai di log "
         "(`data/processed/dq_log.csv`), karantina (`data/processed/quarantine_lines.csv`), kolom tanda di "
         "`fact_sales_line`, dan test (`tests/test_dq_rules.py`).\n",
-        f"Baris masuk {m['rows_in']}, baris bersih {m['rows_clean']}, baris karantina {m['rows_quarantined']}. "
-        "Tidak ada baris yang dibuang tanpa catatan.\n",
+        f"Baris masuk {m['rows_in']}, baris bersih {m['rows_clean']}, baris karantina {m['rows_quarantined']}. Tidak ada baris yang dibuang tanpa catatan.\n",
         "Arti kolom: **baris** = jumlah baris yang terkena aturan di data mentah; **entitas** = jumlah invoice/outlet/"
         "tanggal yang terkena bila aturan berlaku di level itu; **sisa** = pelanggaran yang masih ada setelah cleaning.\n",
         "## Ringkasan aturan\n",

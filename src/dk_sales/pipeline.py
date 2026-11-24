@@ -46,7 +46,9 @@ def _write_csv(df: pd.DataFrame, path: Path) -> None:
     out.to_csv(path, index=False, lineterminator="\n")
 
 
-def write(build: BuildOutput, processed_dir: Path = config.PROCESSED_DIR, docs_dir: Path | None = config.DOCS_DIR, contracts_dir: Path | None = config.CONTRACTS_DIR) -> list[Path]:
+def write(
+    build: BuildOutput, processed_dir: Path = config.PROCESSED_DIR, docs_dir: Path | None = config.DOCS_DIR, contracts_dir: Path | None = config.CONTRACTS_DIR
+) -> list[Path]:
     processed_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for name, df in build.tables.items():

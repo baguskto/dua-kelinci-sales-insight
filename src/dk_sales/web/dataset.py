@@ -93,8 +93,13 @@ def load_bytes(filename: str, data: bytes, max_bytes: int, max_rows: int) -> Dat
         raise InputError(f"File berisi {len(raw)} baris, melebihi batas {max_rows} baris.")
     from datetime import datetime
 
-    source = {"filename": Path(filename).name[:120], "sha256": sha256_bytes(data), "bytes": len(data), **meta,
-              "loaded_at": datetime.now().strftime("%d %b %Y %H:%M")}
+    source = {
+        "filename": Path(filename).name[:120],
+        "sha256": sha256_bytes(data),
+        "bytes": len(data),
+        **meta,
+        "loaded_at": datetime.now().strftime("%d %b %Y %H:%M"),
+    }
     return build_dataset(raw, source)
 
 

@@ -33,42 +33,165 @@ REFUSALS = {
 }
 
 INJECTION = [
-    r"abaikan (semua )?(instruksi|perintah|aturan)", r"lupakan (semua )?(instruksi|perintah|aturan)",
-    r"ignore (all |the )?(previous|prior|above)", r"disregard (all |the )?(previous|prior|above)",
-    r"system prompt", r"prompt sistem", r"developer mode", r"jailbreak", r"\bdan mode\b",
-    r"kamu sekarang (adalah|jadi|menjadi)", r"tanpa (aturan|batasan|filter)", r"mulai sekarang kamu", r"you are now", r"act as", r"berpura[- ]pura",
-    r"tampilkan (instruksi|prompt|aturan)", r"bocorkan", r"<\s*/?\s*(system|script|instruction)",
-    r"\[\s*(system|inst)\s*\]", r"api[_ ]?key", r"secret[_ ]?key", r"token bot",
+    r"abaikan (semua )?(instruksi|perintah|aturan)",
+    r"lupakan (semua )?(instruksi|perintah|aturan)",
+    r"ignore (all |the )?(previous|prior|above)",
+    r"disregard (all |the )?(previous|prior|above)",
+    r"system prompt",
+    r"prompt sistem",
+    r"developer mode",
+    r"jailbreak",
+    r"\bdan mode\b",
+    r"kamu sekarang (adalah|jadi|menjadi)",
+    r"tanpa (aturan|batasan|filter)",
+    r"mulai sekarang kamu",
+    r"you are now",
+    r"act as",
+    r"berpura[- ]pura",
+    r"tampilkan (instruksi|prompt|aturan)",
+    r"bocorkan",
+    r"<\s*/?\s*(system|script|instruction)",
+    r"\[\s*(system|inst)\s*\]",
+    r"api[_ ]?key",
+    r"secret[_ ]?key",
+    r"token bot",
 ]
 ACTION = [
-    r"\bkirim(kan)?\b", r"\bsend\b", r"\bbroadcast\b", r"\bforward\b", r"\bemail(kan)?\b",
-    r"\bhapus\b", r"\bdelete\b", r"\bubah\b", r"\bedit\b", r"\bganti (data|angka)", r"\bupdate\b",
-    r"\bupload\b", r"\bunggah\b", r"\bpost(ing)? ke\b", r"\bbagikan ke\b", r"\bshare\b",
+    r"\bkirim(kan)?\b",
+    r"\bsend\b",
+    r"\bbroadcast\b",
+    r"\bforward\b",
+    r"\bemail(kan)?\b",
+    r"\bhapus\b",
+    r"\bdelete\b",
+    r"\bubah\b",
+    r"\bedit\b",
+    r"\bganti (data|angka)",
+    r"\bupdate\b",
+    r"\bupload\b",
+    r"\bunggah\b",
+    r"\bpost(ing)? ke\b",
+    r"\bbagikan ke\b",
+    r"\bshare\b",
 ]
 SQL = [
-    r"\bselect\b.+\bfrom\b", r"\bdrop\s+table\b", r"\binsert\s+into\b", r"\bdelete\s+from\b",
-    r"\bunion\s+select\b", r";\s*--", r"\bor\s+1\s*=\s*1\b", r"\bexec(ute)?\s*\(", r"__import__", r"\bos\.system\b",
+    r"\bselect\b.+\bfrom\b",
+    r"\bdrop\s+table\b",
+    r"\binsert\s+into\b",
+    r"\bdelete\s+from\b",
+    r"\bunion\s+select\b",
+    r";\s*--",
+    r"\bor\s+1\s*=\s*1\b",
+    r"\bexec(ute)?\s*\(",
+    r"__import__",
+    r"\bos\.system\b",
 ]
 MISSING = [
-    r"\bstok\b", r"\bstock\b", r"\binventor", r"\bgudang\b", r"\bbudget\b", r"\banggaran\b",
-    r"\btarget\b", r"\bkuota\b", r"\bprofit\b", r"\blaba\b", r"\bmargin\b", r"\bhpp\b", r"\bcogs\b",
-    r"\bbiaya\b", r"\bgaji\b", r"\bkomisi\b", r"\bprediksi\b", r"\bforecast\b", r"\bramalan\b",
-    r"\bkompetitor\b", r"\bpesaing\b", r"\bmarket share\b", r"\bpangsa pasar\b", r"\bharga pesaing\b",
+    r"\bstok\b",
+    r"\bstock\b",
+    r"\binventor",
+    r"\bgudang\b",
+    r"\bbudget\b",
+    r"\banggaran\b",
+    r"\btarget\b",
+    r"\bkuota\b",
+    r"\bprofit\b",
+    r"\blaba\b",
+    r"\bmargin\b",
+    r"\bhpp\b",
+    r"\bcogs\b",
+    r"\bbiaya\b",
+    r"\bgaji\b",
+    r"\bkomisi\b",
+    r"\bprediksi\b",
+    r"\bforecast\b",
+    r"\bramalan\b",
+    r"\bkompetitor\b",
+    r"\bpesaing\b",
+    r"\bmarket share\b",
+    r"\bpangsa pasar\b",
+    r"\bharga pesaing\b",
 ]
-PERSONAL = [r"\bnomor (hp|telepon|telp|wa|whatsapp)\b", r"\bno\.? ?(hp|telp)\b", r"\balamat\b", r"\bemail\b", r"\bktp\b", r"\bnik\b", r"\brekening\b", r"\bphone number\b", r"\baddress\b"]
+PERSONAL = [
+    r"\bnomor (hp|telepon|telp|wa|whatsapp)\b",
+    r"\bno\.? ?(hp|telp)\b",
+    r"\balamat\b",
+    r"\bemail\b",
+    r"\bktp\b",
+    r"\bnik\b",
+    r"\brekening\b",
+    r"\bphone number\b",
+    r"\baddress\b",
+]
 OTHER_MONTHS = {
-    "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6, "juli": 7, "agustus": 8,
-    "november": 11, "desember": 12, "january": 1, "february": 2, "march": 3, "june": 6, "july": 7,
-    "august": 8, "december": 12,
+    "januari": 1,
+    "februari": 2,
+    "maret": 3,
+    "april": 4,
+    "mei": 5,
+    "juni": 6,
+    "juli": 7,
+    "agustus": 8,
+    "november": 11,
+    "desember": 12,
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "december": 12,
 }
 MONTHS = {"september": 9, "sept": 9, "sep": 9, "oktober": 10, "october": 10, "okt": 10, "oct": 10}
 
 DATA_WORDS = [
-    "penjualan", "jualan", "omzet", "omset", "sales", "revenue", "pendapatan", "net", "neto", "bruto", "gross",
-    "karton", "invoice", "faktur", "order", "region", "wilayah", "cabang", "brand", "merek", "merk", "sku",
-    "produk", "outlet", "toko", "warung", "grosir", "minimarket", "salesman", "retur", "diskon", "data",
-    "terlemah", "terbesar", "tertinggi", "terendah", "terkecil", "naik", "turun", "tumbuh", "berapa", "total",
-    "kualitas", "duplikat", "bulan", "kontribusi", "porsi",
+    "penjualan",
+    "jualan",
+    "omzet",
+    "omset",
+    "sales",
+    "revenue",
+    "pendapatan",
+    "net",
+    "neto",
+    "bruto",
+    "gross",
+    "karton",
+    "invoice",
+    "faktur",
+    "order",
+    "region",
+    "wilayah",
+    "cabang",
+    "brand",
+    "merek",
+    "merk",
+    "sku",
+    "produk",
+    "outlet",
+    "toko",
+    "warung",
+    "grosir",
+    "minimarket",
+    "salesman",
+    "retur",
+    "diskon",
+    "data",
+    "terlemah",
+    "terbesar",
+    "tertinggi",
+    "terendah",
+    "terkecil",
+    "naik",
+    "turun",
+    "tumbuh",
+    "berapa",
+    "total",
+    "kualitas",
+    "duplikat",
+    "bulan",
+    "kontribusi",
+    "porsi",
 ]
 DIMENSION_WORDS = [
     ("outlet_type", [r"tipe outlet", r"jenis outlet", r"tipe toko", r"\bchannel\b", r"tipe pelanggan"]),
@@ -80,14 +203,33 @@ DIMENSION_WORDS = [
     ("outlet", [r"\boutlet\b", r"\btoko\b", r"\bpelanggan\b"]),
 ]
 REGION_ALIASES = {
-    "jabar": "Jawa Barat", "jawa barat": "Jawa Barat", "jateng": "Jawa Tengah", "jawa tengah": "Jawa Tengah",
-    "jatim": "Jawa Timur", "jawa timur": "Jawa Timur", "jabodetabek": "Jabodetabek", "jabotabek": "Jabodetabek",
-    "sumatera": "Sumatera", "sumatra": "Sumatera", "kalimantan": "Kalimantan",
+    "jabar": "Jawa Barat",
+    "jawa barat": "Jawa Barat",
+    "jateng": "Jawa Tengah",
+    "jawa tengah": "Jawa Tengah",
+    "jatim": "Jawa Timur",
+    "jawa timur": "Jawa Timur",
+    "jabodetabek": "Jabodetabek",
+    "jabotabek": "Jabodetabek",
+    "sumatera": "Sumatera",
+    "sumatra": "Sumatera",
+    "kalimantan": "Kalimantan",
 }
 BRAND_ALIASES = {
-    "kacang dua kelinci": "Kacang Dua Kelinci", "dua kelinci": "Kacang Dua Kelinci", "kacang": "Kacang Dua Kelinci",
-    "sukro": "Sukro", "tos tos": "Tos Tos", "tostos": "Tos Tos", "tos-tos": "Tos Tos", "tic tac": "Tic Tac",
-    "tictac": "Tic Tac", "tic-tac": "Tic Tac", "deka": "Deka", "pilus": "Pilus", "usagi": "Usagi", "roni": "Roni",
+    "kacang dua kelinci": "Kacang Dua Kelinci",
+    "dua kelinci": "Kacang Dua Kelinci",
+    "kacang": "Kacang Dua Kelinci",
+    "sukro": "Sukro",
+    "tos tos": "Tos Tos",
+    "tostos": "Tos Tos",
+    "tos-tos": "Tos Tos",
+    "tic tac": "Tic Tac",
+    "tictac": "Tic Tac",
+    "tic-tac": "Tic Tac",
+    "deka": "Deka",
+    "pilus": "Pilus",
+    "usagi": "Usagi",
+    "roni": "Roni",
 }
 OUTLET_TYPES = {"grosir": "Grosir", "minimarket": "Minimarket", "toko kelontong": "Toko Kelontong", "kelontong": "Toko Kelontong", "warung": "Warung"}
 
@@ -245,7 +387,10 @@ def parse(question: str, known: dict, outlets: list[tuple[str, str, str]], last:
     if re.search(r"kualitas data|data (kotor|bersih|bermasalah)|duplikat|karantina|dibersihkan|cleaning|masalah data|\bdq\b|salesman kosong|data quality", q):
         return Intent("data_quality", [("data_quality_summary", {})])
     # 2. weakest outlets
-    if re.search(r"(outlet|toko|pelanggan)\w* (yang )?(paling )?(lemah|terlemah|terburuk|terjelek|paling sedikit|perlu (di)?kunjungi|bermasalah)|terlemah|weakest|paling lemah", q) and not (dim and dim != "outlet"):
+    if re.search(
+        r"(outlet|toko|pelanggan)\w* (yang )?(paling )?(lemah|terlemah|terburuk|terjelek|paling sedikit|perlu (di)?kunjungi|bermasalah)|terlemah|weakest|paling lemah",
+        q,
+    ) and not (dim and dim != "outlet"):
         return Intent("weakest_outlets", [("weakest_outlets", {"period": p, "n": n or 5})], note=note)
     # 3. a specific outlet
     if ids:
@@ -253,7 +398,9 @@ def parse(question: str, known: dict, outlets: list[tuple[str, str, str]], last:
     if named:
         if len(named) > 1:
             opts = "; ".join(f"{oid} ({name}, {br})" for oid, name, br in named)
-            return Intent("clarify", message=f"Nama '{named[0][1]}' dipakai {len(named)} outlet: {opts}. Outlet yang mana? Sebutkan id-nya, misalnya {named[0][0]}.")
+            return Intent(
+                "clarify", message=f"Nama '{named[0][1]}' dipakai {len(named)} outlet: {opts}. Outlet yang mana? Sebutkan id-nya, misalnya {named[0][0]}."
+            )
         return Intent("outlet_detail", [("outlet_detail", {"outlet_id": named[0][0]})])
     # 4. comparison / trend
     if re.search(r"\bnaik|\bturun|dibanding|banding|\bmom\b|month.on.month|pertumbuhan|\btumbuh|perubahan|growth|tren|trend|selisih", q):
@@ -263,7 +410,12 @@ def parse(question: str, known: dict, outlets: list[tuple[str, str, str]], last:
     top = re.search(r"terbesar|tertinggi|teratas|terbaik|paling (besar|tinggi|banyak|laku)|\btop\b|juara|terlaris", q)
     bottom = re.search(r"terkecil|terendah|terbawah|paling (kecil|rendah|sedikit)|\bbottom\b|terburuk", q)
     if (top or bottom) and dim:
-        args = {"dimension": dim, "n": n or (1 if re.search(r"\bmana\b|\bsiapa\b|\bapa\b", q) and not re.search(r"\bper\b", q) else 5), "order": "bottom" if bottom and not top else "top", "period": p}
+        args = {
+            "dimension": dim,
+            "n": n or (1 if re.search(r"\bmana\b|\bsiapa\b|\bapa\b", q) and not re.search(r"\bper\b", q) else 5),
+            "order": "bottom" if bottom and not top else "top",
+            "period": p,
+        }
         args.update({k: v for k, v in filters().items() if k in ("region", "brand")})
         return Intent("top_bottom", [("top_bottom", args)], note=note)
     # 6. breakdown

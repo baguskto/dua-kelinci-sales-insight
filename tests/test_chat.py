@@ -104,7 +104,9 @@ def test_golden_and_redteam_with_mocked_llm_that_echoes_tool_text(ds):
 
 
 def test_llm_answer_with_grounded_numbers_is_kept(ds):
-    fake = FakeLLM([_tool("sales_by", {"dimension": "region", "period": "2026-10"}), _text("Oktober: Jabodetabek terbesar Rp256,8 juta, Kalimantan terkecil Rp70,4 juta.")])
+    fake = FakeLLM(
+        [_tool("sales_by", {"dimension": "region", "period": "2026-10"}), _text("Oktober: Jabodetabek terbesar Rp256,8 juta, Kalimantan terkecil Rp70,4 juta.")]
+    )
     r = engine(settings={"anthropic_api_key": "k"}, llm_client=fake).answer("region terbesar oktober?", ds, DEV_USER)
     assert r.mode == "llm" and r.guard["ok"]
     assert "Rp256,8 juta" in r.text

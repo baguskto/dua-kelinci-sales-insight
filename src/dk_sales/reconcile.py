@@ -36,9 +36,7 @@ def bridge(result: CleanResult) -> pd.DataFrame:
     # DQ-03 relabel: move totals from the variant label to the canonical label.
     relabel = log[(log["rule_id"] == "DQ-03") & (log["action"].isin(["fixed", "inferred"]))]
     if len(relabel):
-        moved = raw[raw["raw_row_id"].isin(relabel["raw_row_id"])].merge(
-            relabel[["raw_row_id", "after"]], on="raw_row_id"
-        )
+        moved = raw[raw["raw_row_id"].isin(relabel["raw_row_id"])].merge(relabel[["raw_row_id", "after"]], on="raw_row_id")
         out_ = _agg(moved, "region").mul(-1)
         in_ = _agg(moved, "after")
         d = out_.add(in_, fill_value=0)

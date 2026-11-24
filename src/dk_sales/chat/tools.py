@@ -24,6 +24,8 @@ FILTER_LABELS = {"region": "region", "brand": "brand", "outlet_type": "tipe", "s
 
 def _filt(used: dict) -> str:
     return ", ".join(f"{FILTER_LABELS[k]} {v}" for k, v in used.items())
+
+
 OUTLET_ID_RE = re.compile(r"^OUT\d{1,8}$")
 
 
@@ -263,7 +265,17 @@ class ToolRunner:
         if order == "bottom":
             rows = list(reversed(rows))
         rows = rows[:n]
-        res = self._render_rows("top_bottom", args, rows, dim, metric, fmt.period_label(period, self.months), _filt(used), limit=n, heading=f"{'' if n == 1 else str(n) + ' '}{an.DIMENSION_LABELS[dim].lower()} {'tertinggi' if order == 'top' else 'terendah'}")
+        res = self._render_rows(
+            "top_bottom",
+            args,
+            rows,
+            dim,
+            metric,
+            fmt.period_label(period, self.months),
+            _filt(used),
+            limit=n,
+            heading=f"{'' if n == 1 else str(n) + ' '}{an.DIMENSION_LABELS[dim].lower()} {'tertinggi' if order == 'top' else 'terendah'}",
+        )
         res.facts.append(n)
         return res
 
@@ -284,8 +296,14 @@ class ToolRunner:
             pct = an._pct(c, p)
             arah = "naik" if c >= p else "turun"
             text = f"{_cap(an.METRICS[metric].split(' (')[0].lower())}{' ' + filt if filt else ''}: {cl} {_fmt_metric(c, metric)}, {arah} {fmt.pct(abs(pct)) if pct is not None else '-'} dari {pl} ({_fmt_metric(p, metric)})."
-            table = [{"label": fmt.month_label(prev), "value": _fmt_metric(p, metric, full=True)}, {"label": fmt.month_label(curr), "value": _fmt_metric(c, metric, full=True)}, {"label": "Perubahan", "value": fmt.pct(pct, signed=True)}]
-            return ToolResult("compare_periods", args, {"prev": p, "curr": c, "pct": pct}, text, table, [p, c, c - p, int(curr[:4])], [pct] if pct is not None else [])
+            table = [
+                {"label": fmt.month_label(prev), "value": _fmt_metric(p, metric, full=True)},
+                {"label": fmt.month_label(curr), "value": _fmt_metric(c, metric, full=True)},
+                {"label": "Perubahan", "value": fmt.pct(pct, signed=True)},
+            ]
+            return ToolResult(
+                "compare_periods", args, {"prev": p, "curr": c, "pct": pct}, text, table, [p, c, c - p, int(curr[:4])], [pct] if pct is not None else []
+            )
         rows = [r for r in an.breakdown(f, dim, "all", metric) if r.get("mom_pct") is not None or r.get("curr")]
         rows.sort(key=lambda r: (r.get("mom_pct") is None, -(r.get("mom_pct") or 0)))
         facts: list[float] = [int(curr[:4])]
@@ -298,8 +316,12 @@ class ToolRunner:
                 pcts.append(r["mom_pct"])
             name = self._label(dim, r["key"])
             lines.append(f"{name} {fmt.pct(r['mom_pct'], signed=True)}")
-            table.append({"label": name, "value": f"{_fmt_metric(r['prev'], metric)} -> {_fmt_metric(r['curr'], metric)} ({fmt.pct(r['mom_pct'], signed=True)})"})
-        text = f"Perubahan {cl} vs {pl} per {an.DIMENSION_LABELS[dim].lower()}{' (' + filt + ')' if filt else ''}, dari naik terbesar: " + "; ".join(lines) + "."
+            table.append(
+                {"label": name, "value": f"{_fmt_metric(r['prev'], metric)} -> {_fmt_metric(r['curr'], metric)} ({fmt.pct(r['mom_pct'], signed=True)})"}
+            )
+        text = (
+            f"Perubahan {cl} vs {pl} per {an.DIMENSION_LABELS[dim].lower()}{' (' + filt + ')' if filt else ''}, dari naik terbesar: " + "; ".join(lines) + "."
+        )
         return ToolResult("compare_periods", args, {"rows": rows[:MAX_N]}, text, table, facts, pcts)
 
     def _weakest_outlets(self, a: dict) -> ToolResult:
@@ -316,7 +338,9 @@ class ToolRunner:
             facts += [w.net_sales_idr, w.peer_median_idr, w.invoices, w.peer_median_invoices, w.index_pct, *w.month_values.values()]
             pcts += [w.index_pct] + ([w.mom_pct] if w.mom_pct is not None else [])
             lines.append(f"{w.rank}) {w.outlet_name} ({w.outlet_id}, {w.branch}): {w.reason}")
-            table.append({"label": f"{w.outlet_name} ({w.outlet_id})", "value": f"{fmt.rupiah(w.net_sales_idr)}, {fmt.pct(w.index_pct, 0)} dari median {w.outlet_type}"})
+            table.append(
+                {"label": f"{w.outlet_name} ({w.outlet_id})", "value": f"{fmt.rupiah(w.net_sales_idr)}, {fmt.pct(w.index_pct, 0)} dari median {w.outlet_type}"}
+            )
         text = f"{len(weak)} outlet terlemah {fmt.period_label(period, self.months)} dibanding median outlet bertipe sama: " + " ".join(lines)
         notes = sorted({n for w in weak for n in w.notes if "di luar urutan" in n})
         if notes:
@@ -332,7 +356,15 @@ class ToolRunner:
             raise ToolError("not_found", f"Outlet {oid} tidak ditemukan dalam data yang bisa Anda akses.")
         args = {"outlet_id": oid}
         months = list(d["by_month"].items())
-        facts: list[float] = [d["net_sales_idr"], d["invoices"], d["qty_carton"], d["returns_idr"], *[v for _, v in months], *[s["net_sales_idr"] for s in d["top_skus"]], *[int(m[:4]) for m, _ in months]]
+        facts: list[float] = [
+            d["net_sales_idr"],
+            d["invoices"],
+            d["qty_carton"],
+            d["returns_idr"],
+            *[v for _, v in months],
+            *[s["net_sales_idr"] for s in d["top_skus"]],
+            *[int(m[:4]) for m, _ in months],
+        ]
         pcts = [d["mom_pct"]] if d["mom_pct"] is not None else []
         # Notes are generated from the data (e.g. returned vs bought cartons); their numbers are facts too.
         facts += [n.value for note in d["notes"] for n in guard.find_numbers(note)]
@@ -345,7 +377,9 @@ class ToolRunner:
             text += " SKU terbesar: " + ", ".join(s["sku"] for s in d["top_skus"]) + "."
         if d["notes"]:
             text += " Catatan: " + " ".join(d["notes"])
-        table = [{"label": "Net setelah retur", "value": fmt.rupiah(d["net_sales_idr"])}, {"label": "Invoice", "value": str(d["invoices"])}] + [{"label": fmt.month_label(m), "value": fmt.rupiah(v)} for m, v in months]
+        table = [{"label": "Net setelah retur", "value": fmt.rupiah(d["net_sales_idr"])}, {"label": "Invoice", "value": str(d["invoices"])}] + [
+            {"label": fmt.month_label(m), "value": fmt.rupiah(v)} for m, v in months
+        ]
         return ToolResult("outlet_detail", args, d, text, table, facts, pcts)
 
     def _find_outlet(self, a: dict) -> ToolResult:
@@ -360,7 +394,9 @@ class ToolRunner:
         if not rows:
             return ToolResult("find_outlet", args, {"rows": []}, f"Tidak ada outlet bernama '{name}' dalam akses Anda.")
         text = "Outlet yang cocok: " + "; ".join(f"{r['outlet_name']} {r['outlet_id']} ({r['outlet_type']}, {r['branch']})" for r in rows) + "."
-        return ToolResult("find_outlet", args, {"rows": rows}, text, [{"label": r["outlet_id"], "value": f"{r['outlet_name']}, {r['branch']}"} for r in rows], [len(rows)])
+        return ToolResult(
+            "find_outlet", args, {"rows": rows}, text, [{"label": r["outlet_id"], "value": f"{r['outlet_name']}, {r['branch']}"} for r in rows], [len(rows)]
+        )
 
     def _data_quality_summary(self, a: dict) -> ToolResult:
         from dk_sales.rules import ACTION_ID, RULES

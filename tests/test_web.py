@@ -303,15 +303,32 @@ def test_production_refuses_unsafe_config():
     for part in ["AUTH_MODE", "SECRET_KEY", "ALLOWED_HOSTS", "FORCE_HTTPS", "TRUSTED_PROXIES", "METRICS_TOKEN"]:
         assert part in msg
     with pytest.raises(ConfigError):
-        from_env({"APP_ENV": "production", "AUTH_MODE": "local", "SECRET_KEY": "a" * 40, "ALLOWED_HOSTS": "*", "FORCE_HTTPS": "true", "TRUSTED_PROXIES": "10.0.0.2", "METRICS_TOKEN": "x" * 30})
+        from_env(
+            {
+                "APP_ENV": "production",
+                "AUTH_MODE": "local",
+                "SECRET_KEY": "a" * 40,
+                "ALLOWED_HOSTS": "*",
+                "FORCE_HTTPS": "true",
+                "TRUSTED_PROXIES": "10.0.0.2",
+                "METRICS_TOKEN": "x" * 30,
+            }
+        )
 
 
 def test_production_accepts_safe_config(users_file):
-    s = from_env({
-        "APP_ENV": "production", "AUTH_MODE": "local", "LOCAL_USERS_FILE": str(users_file),
-        "SECRET_KEY": "Zq8v1pR4kT7wY2nB5mC9xL3sD6fH0jG8aE1uI4oP", "ALLOWED_HOSTS": "sales.duakelinci.local",  # gitleaks:allow (test fixture)
-        "FORCE_HTTPS": "true", "TRUSTED_PROXIES": "172.20.0.10", "METRICS_TOKEN": "t" * 32,
-    })
+    s = from_env(
+        {
+            "APP_ENV": "production",
+            "AUTH_MODE": "local",
+            "LOCAL_USERS_FILE": str(users_file),
+            "SECRET_KEY": "Zq8v1pR4kT7wY2nB5mC9xL3sD6fH0jG8aE1uI4oP",
+            "ALLOWED_HOSTS": "sales.duakelinci.local",  # gitleaks:allow (test fixture)
+            "FORCE_HTTPS": "true",
+            "TRUSTED_PROXIES": "172.20.0.10",
+            "METRICS_TOKEN": "t" * 32,
+        }
+    )
     assert s.is_production and s.host == "0.0.0.0"
 
 
@@ -325,12 +342,14 @@ def test_development_binds_localhost():
 @pytest.fixture
 def users_file(tmp_path):
     h = auth.hash_password(PASSWORD)
-    data = {"users": [
-        {"username": "hos", "display_name": "Head of Sales", "password_hash": h, "roles": ["head_of_sales"]},
-        {"username": "jabar", "display_name": "Head of Region Jabar", "password_hash": h, "roles": ["head_of_region"], "regions": ["Jawa Barat"]},
-        {"username": "sukro", "display_name": "BM Sukro", "password_hash": h, "roles": ["brand_manager"], "brands": ["Sukro"]},
-        {"username": "admin", "display_name": "Admin", "password_hash": h, "roles": ["admin"]},
-    ]}
+    data = {
+        "users": [
+            {"username": "hos", "display_name": "Head of Sales", "password_hash": h, "roles": ["head_of_sales"]},
+            {"username": "jabar", "display_name": "Head of Region Jabar", "password_hash": h, "roles": ["head_of_region"], "regions": ["Jawa Barat"]},
+            {"username": "sukro", "display_name": "BM Sukro", "password_hash": h, "roles": ["brand_manager"], "brands": ["Sukro"]},
+            {"username": "admin", "display_name": "Admin", "password_hash": h, "roles": ["admin"]},
+        ]
+    }
     p = tmp_path / "users.json"
     p.write_text(json.dumps(data))
     return p
@@ -430,7 +449,15 @@ def test_entra_oidc_flow_validates_token(tmp_path):
             return type("K", (), {"key": key.public_key()})()
 
     def token(nonce, aud="cid"):
-        claims = {"iss": "https://login.microsoftonline.com/tid/v2.0", "aud": aud, "nonce": nonce, "roles": ["HeadOfSales"], "name": "Rina", "preferred_username": "rina@dk", "exp": 9_999_999_999}
+        claims = {
+            "iss": "https://login.microsoftonline.com/tid/v2.0",
+            "aud": aud,
+            "nonce": nonce,
+            "roles": ["HeadOfSales"],
+            "name": "Rina",
+            "preferred_username": "rina@dk",
+            "exp": 9_999_999_999,
+        }
         return {"id_token": jwt.encode(claims, key, algorithm="RS256")}
 
     u = auth.oidc_finish(s, {"state": saved["state"], "code": "c"}, saved, http_post=lambda url, data: token(saved["nonce"]), jwks_client=Jwks())

@@ -32,7 +32,11 @@ Aturan:
 - Bila nama outlet dipakai lebih dari satu outlet_id, tanyakan outlet yang mana.
 """
 
-MODE_LABELS = {"offline": "Mode offline (aturan dan template)", "llm": "Mode AI (Claude) dengan cek angka", "llm_fallback": "Mode AI gagal cek, diganti jawaban template"}
+MODE_LABELS = {
+    "offline": "Mode offline (aturan dan template)",
+    "llm": "Mode AI (Claude) dengan cek angka",
+    "llm_fallback": "Mode AI gagal cek, diganti jawaban template",
+}
 
 
 @dataclass
@@ -82,7 +86,9 @@ class ChatEngine:
         if not self.settings.llm_enabled or self._llm_error:
             return None
         try:
-            self._llm = AnthropicClient(self.settings.anthropic_api_key, self.settings.llm_model, self.settings.llm_timeout_s, self.settings.llm_max_output_tokens)
+            self._llm = AnthropicClient(
+                self.settings.anthropic_api_key, self.settings.llm_model, self.settings.llm_timeout_s, self.settings.llm_max_output_tokens
+            )
         except LLMUnavailable as exc:
             self._llm_error = str(exc)
             return None
@@ -215,7 +221,11 @@ class ChatEngine:
             tokens += resp.input_tokens + resp.output_tokens
             self._account(resp)
             if gen:
-                gen.end(usage_details={"input": resp.input_tokens, "output": resp.output_tokens}, cost_details={"total": resp.cost_usd}, metadata={"stop_reason": resp.stop_reason})
+                gen.end(
+                    usage_details={"input": resp.input_tokens, "output": resp.output_tokens},
+                    cost_details={"total": resp.cost_usd},
+                    metadata={"stop_reason": resp.stop_reason},
+                )
             if resp.stop_reason != "tool_use" or not resp.tool_uses:
                 final = resp
                 break
@@ -224,7 +234,14 @@ class ChatEngine:
             for tu in resp.tool_uses:
                 calls += 1
                 if calls > self.settings.chat_max_tool_calls:
-                    tool_results.append({"type": "tool_result", "tool_use_id": tu["id"], "is_error": True, "content": "Batas jumlah tool per pertanyaan tercapai. Jawab dengan hasil yang sudah ada."})
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tu["id"],
+                            "is_error": True,
+                            "content": "Batas jumlah tool per pertanyaan tercapai. Jawab dengan hasil yang sudah ada.",
+                        }
+                    )
                     continue
                 span = trace.child(f"tool:{tu['name']}", metadata={"args": tu.get("input")}) if trace else None
                 try:
@@ -256,7 +273,16 @@ class ChatEngine:
         if results:
             ttext = " ".join(r.text for r in results)
             tcheck = guard.check(ttext, facts, pcts)
-            return ChatReply(mode="llm_fallback", text=ttext, intent=it_name, sources=_sources(results), table=_table(results), fallback_reason=reason, guard={**tcheck.__dict__, "llm_unmatched": check.unmatched}, tokens=tokens)
+            return ChatReply(
+                mode="llm_fallback",
+                text=ttext,
+                intent=it_name,
+                sources=_sources(results),
+                table=_table(results),
+                fallback_reason=reason,
+                guard={**tcheck.__dict__, "llm_unmatched": check.unmatched},
+                tokens=tokens,
+            )
         reply = self._offline_answer(q, runner, session_key, trace)
         reply.mode = "llm_fallback"
         reply.fallback_reason = reason

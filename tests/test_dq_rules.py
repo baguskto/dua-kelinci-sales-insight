@@ -58,9 +58,7 @@ def test_dq03_region_variants(build):
     assert build.result.rule_stats["DQ-03"]["rows"] == 10
     lg = log_for(build.result, "DQ-03")
     assert dict(lg["before"].value_counts()) == {"Jabar": 4, "JAWA BARAT": 4, "JABODETABEK": 1, "JAWA TIMUR": 1}
-    assert set(build.tables["fact_sales_line"]["region"]) == {
-        "Jabodetabek", "Jawa Barat", "Jawa Tengah", "Jawa Timur", "Sumatera", "Kalimantan"
-    }
+    assert set(build.tables["fact_sales_line"]["region"]) == {"Jabodetabek", "Jawa Barat", "Jawa Tengah", "Jawa Timur", "Sumatera", "Kalimantan"}
     r = clean(rows({"region": "jateng", "branch": "Solo"}))
     assert r.lines.loc[0, "region"] == "Jawa Tengah"
 

@@ -218,10 +218,7 @@ def weakest_outlets(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = 
 
     # SKUs that sell best among peers, used for the "offer these" action.
     sale_all = fact[~fact["is_return"]].drop(columns=["outlet_type"], errors="ignore").merge(dim_outlet[["outlet_id", "outlet_type"]], on="outlet_id")
-    peer_top = {
-        t: g.groupby("sku")["net_sales_idr"].sum().sort_values(ascending=False).index.tolist()
-        for t, g in sale_all.groupby("outlet_type")
-    }
+    peer_top = {t: g.groupby("sku")["net_sales_idr"].sum().sort_values(ascending=False).index.tolist() for t, g in sale_all.groupby("outlet_type")}
     bought = sale_all.groupby("outlet_id")["sku"].agg(set).to_dict()
     last_order = sale_all.groupby("outlet_id")["date"].max().dt.strftime("%Y-%m-%d").to_dict()
 
@@ -288,9 +285,7 @@ def outlet_notes(fact: pd.DataFrame, dim_outlet: pd.DataFrame, outlet_id: str) -
         notes.append(f"Nama sama dengan {', '.join(peers)} di cabang {br}: kemungkinan data master ganda, cek ke admin.")
     for r in rows[rows["is_return"] & rows["dq_return_unmatched"]].itertuples():
         bought = int(fact[(fact["outlet_id"] == outlet_id) & (fact["sku"] == r.sku) & (~fact["is_return"]) & (fact["date"] <= r.date)]["qty_carton"].sum())
-        notes.append(
-            f"Retur {abs(r.qty_carton)} karton {r.sku} ({r.invoice_no}) melebihi pembelian {bought} karton di periode ini: konfirmasi ke tim."
-        )
+        notes.append(f"Retur {abs(r.qty_carton)} karton {r.sku} ({r.invoice_no}) melebihi pembelian {bought} karton di periode ini: konfirmasi ke tim.")
     return notes
 
 

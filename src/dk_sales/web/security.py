@@ -95,7 +95,13 @@ class BodyTooLarge(Exception):
 
 async def _plain(send: Send, status: int, text: str) -> None:
     body = text.encode()
-    await send({"type": "http.response.start", "status": status, "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", str(len(body)).encode())]})
+    await send(
+        {
+            "type": "http.response.start",
+            "status": status,
+            "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", str(len(body)).encode())],
+        }
+    )
     await send({"type": "http.response.body", "body": body})
 
 

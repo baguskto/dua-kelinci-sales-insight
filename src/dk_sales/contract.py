@@ -153,7 +153,12 @@ def contract_document(raw_sha256: str) -> dict:
             "format": "CSV, UTF-8 (BOM, UTF-16 dan cp1252 juga dibaca), pemisah koma/titik koma/tab terdeteksi otomatis; .xlsx sheet pertama",
             "grain": "satu baris produk (SKU) pada satu dokumen penjualan atau retur",
             "columns": [
-                {"name": c, "type": "integer" if c in config.INT_COLUMNS else ("date" if c == "date" else "string"), "required": True, "blank_allowed": c == "salesman"}
+                {
+                    "name": c,
+                    "type": "integer" if c in config.INT_COLUMNS else ("date" if c == "date" else "string"),
+                    "required": True,
+                    "blank_allowed": c == "salesman",
+                }
                 for c in config.RAW_COLUMNS
             ],
             "invoice_pattern": config.INVOICE_PATTERN,
@@ -178,7 +183,6 @@ def contract_document(raw_sha256: str) -> dict:
             "dua kali menjalankan pipeline menghasilkan file yang sama (hash sama)",
         ],
         "rules": [
-            {"id": r.rule_id, "title": r.title, "severity": r.severity, "level": r.level, "action": r.action, "flag_column": r.flag_column}
-            for r in RULES
+            {"id": r.rule_id, "title": r.title, "severity": r.severity, "level": r.level, "action": r.action, "flag_column": r.flag_column} for r in RULES
         ],
     }

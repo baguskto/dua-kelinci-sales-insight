@@ -13,5 +13,3 @@ def build():
 @pytest.fixture(scope="session")
 def fact(build):
     return build.tables["fact_sales_line"]
-
-

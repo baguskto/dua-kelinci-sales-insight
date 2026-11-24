@@ -66,7 +66,9 @@ def build(fact: pd.DataFrame, dim_outlet: pd.DataFrame, scope_label: str = "", p
         brs = an.breakdown(fact, "branch", period)
         if len(brs) > 1:
             facts += [brs[0]["value"], brs[-1]["value"]]
-            parts.append(f"Cabang terbesar {brs[0]['key']} {fmt.rupiah_short(brs[0]['value'])}, terkecil {brs[-1]['key']} {fmt.rupiah_short(brs[-1]['value'])}.")
+            parts.append(
+                f"Cabang terbesar {brs[0]['key']} {fmt.rupiah_short(brs[0]['value'])}, terkecil {brs[-1]['key']} {fmt.rupiah_short(brs[-1]['value'])}."
+            )
 
     br = an.breakdown(fact, "brand", period)
     if len(br) > 1:

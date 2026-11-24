@@ -70,9 +70,7 @@ def profile(raw: pd.DataFrame, sha256: str, source_name: str) -> dict:
         "days_in_range": len(days),
         "days_with_rows": len(present),
         "days_without_rows": [f"{x.date()} ({config.DAY_NAMES_ID[x.weekday()]})" for x in days if x not in present],
-        "rows_per_weekday": {
-            config.DAY_NAMES_ID[k]: int(v) for k, v in sorted(d.dt.day_of_week.value_counts().items())
-        },
+        "rows_per_weekday": {config.DAY_NAMES_ID[k]: int(v) for k, v in sorted(d.dt.day_of_week.value_counts().items())},
     }
     out["rows_per_day"] = {str(k.date()): int(v) for k, v in sorted(d.value_counts().items())}
     out["rows_per_month"] = {k: int(v) for k, v in sorted(df["date"].str[:7].value_counts().items())}
@@ -97,7 +95,7 @@ def profile(raw: pd.DataFrame, sha256: str, source_name: str) -> dict:
         distinct_dates=("date", "nunique"),
     )
     sale_ids = df.loc[df["invoice_no"].str.fullmatch(config.SALE_PREFIX + r"\d+"), "invoice_no"]
-    inv_nums = sorted(set(sale_ids.str[len(config.SALE_PREFIX):].astype(int)))
+    inv_nums = sorted(set(sale_ids.str[len(config.SALE_PREFIX) :].astype(int)))
     out["invoices"] = {
         "distinct_invoices": int(len(inv)),
         "by_prefix": _counts(df.drop_duplicates("invoice_no")["invoice_no"].str[:3]),
@@ -109,15 +107,11 @@ def profile(raw: pd.DataFrame, sha256: str, source_name: str) -> dict:
         "sale_number_gaps": [n for n in range(min(inv_nums), max(inv_nums) + 1) if n not in set(inv_nums)] if inv_nums else [],
         "invoices_with_multiple_dates": int((inv["distinct_dates"] > 1).sum()),
     }
-    out["qty_by_outlet_type"] = {
-        k: _describe(g["qty_carton"]) for k, g in num.groupby("outlet_type")
-    }
+    out["qty_by_outlet_type"] = {k: _describe(g["qty_carton"]) for k, g in num.groupby("outlet_type")}
     disc_rate = (num["discount_idr"] / num["gross_sales_idr"] * 100).round(2)
     out["discount_rate_pct"] = {str(k): int(v) for k, v in sorted(disc_rate.value_counts().items())}
     out["totals_raw"] = {c: int(num[c].sum()) for c in config.INT_COLUMNS}
-    out["price_per_sku"] = {
-        sku: sorted(int(p) for p in g["price_per_carton_idr"].unique()) for sku, g in num.groupby("sku")
-    }
+    out["price_per_sku"] = {sku: sorted(int(p) for p in g["price_per_carton_idr"].unique()) for sku, g in num.groupby("sku")}
     out["brand_per_sku"] = {sku: sorted(g["brand"].unique()) for sku, g in df.groupby("sku")}
     out["exact_duplicate_rows"] = int(df.duplicated().sum())
     out["file_is_sorted_by_date"] = bool(df["date"].is_monotonic_increasing)
@@ -147,18 +141,14 @@ def to_markdown(p: dict) -> str:
     s: list[str] = []
     s.append("# 01 Profiling data mentah\n")
     s.append(
-        "Dokumen ini dibuat otomatis oleh `make data` dari `data/raw/sales_raw.csv` sebelum cleaning. "
-        "Angka mentah lengkap ada di `docs/01-profiling.json`.\n"
+        "Dokumen ini dibuat otomatis oleh `make data` dari `data/raw/sales_raw.csv` sebelum cleaning. Angka mentah lengkap ada di `docs/01-profiling.json`.\n"
     )
     s.append("## Ringkasan\n")
     s.append(f"- File: `{p['source']}`, sha256 `{p['sha256']}`")
     s.append(f"- {p['rows']} baris, {p['columns']} kolom, tanggal {p['date_range']['min']} s.d. {p['date_range']['max']}")
     s.append(f"- {p['invoices']['distinct_invoices']} nomor dokumen: {', '.join(f'{k} {v}' for k, v in p['invoices']['by_prefix'].items())}")
     t = p["totals_raw"]
-    s.append(
-        f"- Total mentah: {t['qty_carton']} karton, gross {_rp(t['gross_sales_idr'])}, diskon {_rp(t['discount_idr'])}, "
-        f"net {_rp(t['net_sales_idr'])}"
-    )
+    s.append(f"- Total mentah: {t['qty_carton']} karton, gross {_rp(t['gross_sales_idr'])}, diskon {_rp(t['discount_idr'])}, net {_rp(t['net_sales_idr'])}")
     s.append(f"- Baris duplikat persis: {p['exact_duplicate_rows']}. File terurut menurut tanggal: {'ya' if p['file_is_sorted_by_date'] else 'tidak'}.\n")
 
     s.append("## Skema dan tipe\n")
@@ -171,8 +161,7 @@ def to_markdown(p: dict) -> str:
         elif "min" in i:
             rng = f"{i['min']} s.d. {i['max']}"
         s.append(
-            f"| {c} | {i['inferred_type']} | {i['blank']} | {i['leading_trailing_space']} | {i['distinct']} | "
-            f"{i['distinct_after_trim_casefold']} | {rng} |"
+            f"| {c} | {i['inferred_type']} | {i['blank']} | {i['leading_trailing_space']} | {i['distinct']} | {i['distinct_after_trim_casefold']} | {rng} |"
         )
     s.append("")
     s.append("## Nilai per kolom kategori\n")

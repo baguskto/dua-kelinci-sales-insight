@@ -80,7 +80,7 @@ def find_numbers(text: str) -> list[FoundNumber]:
         # Single letter units only count after "Rp" context; "5 M" without Rp is ambiguous, keep as plain.
         if unit in ("m", "k") and "Rp" not in text[max(0, m.start() - 3) : m.start()]:
             mult = 1.0
-        precision = (10 ** -decimals) * mult
+        precision = (10**-decimals) * mult
         out.append(FoundNumber(m.group(0).strip(), value * mult, precision / 2 + 1e-9, is_pct))
     return out
 
