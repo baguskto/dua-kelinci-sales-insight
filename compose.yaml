@@ -211,7 +211,7 @@ services:
   langfuse-postgres:
     <<: *hardening
     profiles: ["ops"]
-    image: postgres:16.8-alpine
+    image: postgres:18.7-alpine
     environment:
       POSTGRES_USER: langfuse
       POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD:-}
