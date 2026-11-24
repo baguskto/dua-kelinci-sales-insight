@@ -231,7 +231,7 @@ class ToolRunner:
             t = an.totals(f, period)
             val = _metric_total(t, metric)
             mm = an.mom(f) if period == "all" else None
-            facts = [val, *[int(m[:4]) for m in self.months]]
+            facts: list[float] = [val, *[int(m[:4]) for m in self.months]]
             pcts: list[float] = []
             text = f"{_cap(what)}{' ' + filt if filt else ''} {plabel}: {_fmt_metric(val, metric)}."
             table = [{"label": f"{_cap(what)} {plabel}", "value": _fmt_metric(val, metric)}]

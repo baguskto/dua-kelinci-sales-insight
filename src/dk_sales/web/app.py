@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import csv
-import re
 import io
 import logging
+import re
 import secrets
 import time
 import uuid
@@ -151,7 +151,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             request.session["csrf"] = tok
         return tok
 
-    def current_user(request: Request, required: bool = True) -> auth.User | None:
+    def current_user(request: Request) -> auth.User:
         if settings.auth_mode == "none":
             return auth.DEV_USER
         data = request.session.get("user")
@@ -161,11 +161,9 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             return auth.User.from_session(data)
         if data:
             request.session.clear()
-        if required:
-            if request.url.path.startswith("/api/"):
-                raise HTTPException(401)
-            raise HTTPException(303, headers={"Location": "/login"})
-        return None
+        if request.url.path.startswith("/api/"):
+            raise HTTPException(401)
+        raise HTTPException(303, headers={"Location": "/login"})
 
     async def require_csrf(request: Request, form=None) -> None:
         supplied = request.headers.get("x-csrf-token")
@@ -438,7 +436,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             audit.write("upload", user.username, "denied")
             raise HTTPException(403)
         f = form.get("file")
-        if f is None or not hasattr(f, "read"):
+        if f is None or isinstance(f, str):
             return _upload_error(request, user, "Pilih file .csv atau .xlsx dulu.")
         data = await f.read(settings.max_upload_mb * 1024 * 1024 + 1)
         name = Path(f.filename or "upload.csv").name
@@ -604,7 +602,7 @@ def main() -> None:
 
     settings = from_env()
     app = create_app(settings)
-    print(f"Dua Kelinci Sales Insight berjalan di http://{'127.0.0.1' if settings.host in ('0.0.0.0', '127.0.0.1') else settings.host}:{settings.port}", flush=True)
+    print(f"Dua Kelinci Sales Insight berjalan di http://{'127.0.0.1' if settings.host in ('0.0.0.0', '127.0.0.1') else settings.host}:{settings.port}", flush=True)  # noqa: S104
     uvicorn.run(app, host=settings.host, port=settings.port, log_level="warning", proxy_headers=bool(settings.trusted_proxies),
                 forwarded_allow_ips=",".join(settings.trusted_proxies) or None, timeout_graceful_shutdown=10, server_header=False)
 

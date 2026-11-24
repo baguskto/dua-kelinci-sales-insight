@@ -132,7 +132,8 @@ def from_env(env: dict | None = None) -> Settings:
     env = dict(os.environ if env is None else env)
     s = Settings()
     s.app_env = env.get("APP_ENV", "development").strip().lower() or "development"
-    s.host = env.get("HOST", "0.0.0.0" if s.is_production else "127.0.0.1")
+    # Production runs in a container behind the proxy, so it listens on all interfaces of that container.
+    s.host = env.get("HOST", "0.0.0.0" if s.is_production else "127.0.0.1")  # noqa: S104
     s.port = _int(env, "PORT", 8000)
     if env.get("SECRET_KEY"):
         s.secret_key = env["SECRET_KEY"]

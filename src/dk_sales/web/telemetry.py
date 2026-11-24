@@ -24,7 +24,7 @@ request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        payload = {
+        payload: dict[str, object] = {
             "ts": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
@@ -159,7 +159,7 @@ class Tracer:
             if self.client:
                 self.client.flush()
         except Exception:  # noqa: BLE001
-            pass
+            log.debug("langfuse call failed")
 
 
 class TraceHandle:
@@ -183,14 +183,14 @@ class TraceHandle:
             if self.span:
                 self.span.update(**kwargs)
         except Exception:  # noqa: BLE001
-            pass
+            log.debug("langfuse call failed")
 
     def score(self, name: str, value, comment: str | None = None) -> None:
         try:
             if self.span:
                 self.span.score_trace(name=name, value=value, comment=comment)
         except Exception:  # noqa: BLE001
-            pass
+            log.debug("langfuse call failed")
 
     def end(self, **kwargs) -> None:
         try:
@@ -199,4 +199,4 @@ class TraceHandle:
                     self.span.update(**kwargs)
                 self.span.end()
         except Exception:  # noqa: BLE001
-            pass
+            log.debug("langfuse call failed")

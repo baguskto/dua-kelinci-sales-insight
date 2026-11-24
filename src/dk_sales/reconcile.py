@@ -49,8 +49,8 @@ def bridge(result: CleanResult) -> pd.DataFrame:
     q = result.quarantine
     if len(q):
         qr = raw[raw["raw_row_id"].isin(q["raw_row_id"])].merge(q[["raw_row_id", "rule_id"]], on="raw_row_id")
-        canon = dict(zip(relabel["raw_row_id"], relabel["after"])) if len(relabel) else {}
-        qr["region_c"] = [canon.get(r, reg) for r, reg in zip(qr["raw_row_id"], qr["region"])]
+        canon = dict(zip(relabel["raw_row_id"], relabel["after"], strict=True)) if len(relabel) else {}
+        qr["region_c"] = [canon.get(r, reg) for r, reg in zip(qr["raw_row_id"], qr["region"], strict=True)]
         for rid, g in qr.groupby("rule_id"):
             d = _agg(g, "region_c").mul(-1)
             d["rule_id"] = rid

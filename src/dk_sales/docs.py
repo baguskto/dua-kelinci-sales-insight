@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from dk_sales import config
 from dk_sales.rules import ACTION_ID, RULES, SEVERITY_ID
 
 if TYPE_CHECKING:

@@ -141,12 +141,12 @@ def breakdown(fact: pd.DataFrame, dimension: str, period: str = "all", metric: s
     if len(ms) >= 2:
         prev = _metric_series(fact[fact["year_month"] == ms[-2]], col, metric)
         curr = _metric_series(fact[fact["year_month"] == ms[-1]], col, metric)
-    keys = sorted(set(val.index) | (set(prev.index) | set(curr.index) if prev is not None else set()))
+    keys = sorted(set(val.index) | (set(prev.index) | set(curr.index) if prev is not None and curr is not None else set()))
     rows = []
     for k in keys:
         v = int(val.get(k, 0))
         row = {"key": k, "value": v, "share_pct": round(float(v / total * 100), 2) if total else None}
-        if prev is not None:
+        if prev is not None and curr is not None:
             p, c = int(prev.get(k, 0)), int(curr.get(k, 0))
             row.update(prev_month=ms[-2], curr_month=ms[-1], prev=p, curr=c, change=c - p, mom_pct=_pct(c, p))
         rows.append(row)

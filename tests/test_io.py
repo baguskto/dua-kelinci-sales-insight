@@ -9,7 +9,6 @@ from dk_sales import config
 from dk_sales.clean import clean
 from dk_sales.io import InputError, read_csv_bytes, read_upload
 
-
 RAW = config.RAW_PATH.read_bytes()
 
 

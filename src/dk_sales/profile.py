@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pandas as pd
 
@@ -42,7 +43,7 @@ def profile(raw: pd.DataFrame, sha256: str, source_name: str) -> dict:
     cols = {}
     for c in config.RAW_COLUMNS:
         s = df[c]
-        info = {
+        info: dict[str, Any] = {
             "inferred_type": _infer_type(s),
             "blank": int((s.str.strip() == "").sum()),
             "leading_trailing_space": int((s != s.str.strip()).sum()),

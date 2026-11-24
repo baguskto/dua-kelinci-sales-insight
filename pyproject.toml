@@ -61,3 +61,23 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+
+[tool.ruff]
+line-length = 160
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101", "S311", "E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B", "BLE"]
+"scripts/**" = ["S"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = false
+warn_unused_ignores = false
+files = ["src/dk_sales"]

@@ -307,7 +307,7 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
     # DQ-06 exact duplicates (compared after DQ-03/DQ-04 so spelling variants cannot hide a duplicate)
     key_cols = config.RAW_COLUMNS
     dup_mask = df.duplicated(subset=key_cols, keep="first")
-    first_of = {}
+    first_of: dict[tuple, int] = {}
     for i in df.index:
         k = tuple(df.loc[i, key_cols])
         first_of.setdefault(k, df.at[i, "raw_row_id"])

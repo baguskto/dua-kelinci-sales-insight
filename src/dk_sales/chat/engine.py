@@ -243,8 +243,8 @@ class ChatEngine:
         text = strip_control(final.text if final else "").strip()
         if errors and not results and errors[0].code in ("forbidden", "not_found"):
             # Access and existence answers come from the tool, not from the model's wording.
-            e = errors[0]
-            return ChatReply(mode="llm", text=e.message, intent="llm:" + e.code, refusal="forbidden" if e.code == "forbidden" else None, tokens=tokens)
+            err = errors[0]
+            return ChatReply(mode="llm", text=err.message, intent="llm:" + err.code, refusal="forbidden" if err.code == "forbidden" else None, tokens=tokens)
         facts, pcts = _facts(results)
         check = guard.check(text, facts, pcts)
         it_name = "llm:" + ",".join(sorted({r.tool for r in results})) if results else "llm:no_tool"

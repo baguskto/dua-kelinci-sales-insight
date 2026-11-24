@@ -52,7 +52,7 @@ class AnthropicClient:
         kwargs = {"model": self.model, "max_tokens": self.max_output_tokens, "system": system, "messages": messages}
         if tools:
             kwargs["tools"] = tools
-        r = self._client.messages.create(**kwargs)
+        r = self._client.messages.create(**kwargs)  # type: ignore[call-overload]
         content = []
         for b in r.content:
             if b.type == "text":
