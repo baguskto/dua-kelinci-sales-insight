@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 import io
 import logging
 import secrets
@@ -53,6 +54,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
     templates = Jinja2Templates(directory=str(HERE / "templates"))
     templates.env.globals.update(fmt=fmt, an=an, SEVERITY_ID=SEVERITY_ID, ACTION_ID=ACTION_ID, version=__version__)
     summary_cache: dict[tuple, summ.Summary] = {}
+    recon_cache: dict = {}
 
     def refresh_dataset_metrics() -> None:
         ds = store.active
@@ -176,13 +178,15 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         p = request.query_params.get("period", "all")
         return p if p in an.valid_periods(fact) else "all"
 
-    def build_summary(ds, user: auth.User, period: str) -> summ.Summary:
+    def build_summary(ds, user: auth.User, period: str, fact=None, label: str | None = None) -> summ.Summary:
         scope = user.scope()
-        key = (ds.source.get("sha256"), scope, period)
+        key = (ds.source.get("sha256"), scope, period, label)
         if key in summary_cache:
             return summary_cache[key]
-        fact = scope.apply(ds.fact)
-        label = "" if scope.regions is None and scope.brands is None else scope.label
+        if fact is None:
+            fact = scope.apply(ds.fact)
+        if label is None:
+            label = "" if scope.regions is None and scope.brands is None else scope.label
         trace = tracer.trace("telegram_summary", metadata={"period": period, "scoped": bool(label)})
         s = summ.build(fact, ds.dim_outlet, label, period)
         if settings.llm_polish_summary and chat.llm() is not None and chat.budget.available():
@@ -212,31 +216,78 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             metrics.guardrail_fallbacks.labels("summary", "llm_error").inc()
             return summ.Summary(text=s.text, facts=s.facts, pct_facts=s.pct_facts, source="template", fallback_reason=type(exc).__name__)
 
+    def filters_arg(request: Request, ds, user: auth.User) -> dict:
+        """Region/brand filters from the query string, validated against the data and the user's scope."""
+        out = {}
+        for key, col, allowed in (("region", "region", user.scope().allows_region), ("brand", "brand", user.scope().allows_brand)):
+            v = request.query_params.get(key)
+            if not v:
+                continue
+            if v not in set(ds.fact[col]):
+                continue
+            if not allowed(v):
+                raise HTTPException(403, f"Anda tidak punya akses ke {key} {v}.")
+            out[key] = v
+        return out
+
+    def recon_summary(ds) -> list[dict]:
+        b = recon_cache.get(ds.source.get("sha256"))
+        if b is None:
+            from dk_sales import reconcile
+
+            b = reconcile.bridge(ds.result)
+            recon_cache.clear()
+            recon_cache[ds.source.get("sha256")] = b
+        rows = []
+        rule_cols = sorted({c.split("_")[0] for c in b.columns if c.startswith("DQ-")})
+        for ym, g in b.groupby("month"):
+            label = fmt.month_label(ym) if re.fullmatch(r"\d{4}-\d{2}", str(ym)) else "Tanggal tidak terbaca"
+            rows.append({"month": ym, "label": label, "raw": int(g["raw_net_sales_idr"].sum()), "rules": {r: int(g[f"{r}_net_sales_idr"].sum()) for r in rule_cols},
+                         "clean": int(g["clean_net_sales_idr"].sum()), "diff": int(g["diff_net_sales_idr"].sum()),
+                         "raw_rows": int(g["raw_rows"].sum()), "clean_rows": int(g["clean_rows"].sum())})
+        return rows
+
     def dashboard_context(request: Request, user: auth.User, period: str | None = None) -> dict:
+        from dk_sales.web import views
+
         ds = store.active
         ctx: dict = {"user": user, "csrf": csrf_token(request), "settings": settings, "load_error": store.load_error, "chat_mode": chat.mode,
-                     "role_labels": auth.ROLE_LABELS}
+                     "role_labels": auth.ROLE_LABELS, "filters": {}}
         if ds is None:
             return ctx
         scope = user.scope()
-        fact = scope.apply(ds.fact)
+        scoped = scope.apply(ds.fact)
+        filters = filters_arg(request, ds, user)
+        fact = an.apply_filters(scoped, **filters)
         period = period or period_arg(request, ds.fact)
         months = an.months(ds.fact)
-        totals = an.totals(fact, period)
+        st = ds.result.rule_stats
+        ctx.update(ds=ds, scope=scope, period=period, months=months, period_label=fmt.period_label(period, months), filters=filters,
+                   empty=fact.empty, scope_empty=scoped.empty, telegram_enabled=settings.telegram_enabled, rules=RULES, rule_stats=st,
+                   dq_rows=[r for r in RULES if st[r.rule_id]["rows"] or st[r.rule_id]["entities"]],
+                   quarantine=ds.result.quarantine.to_dict("records"),
+                   returns=scoped[scoped["is_return"]].to_dict("records"),
+                   inferred=ds.result.dq_log[ds.result.dq_log["rule_id"] == "DQ-05"].to_dict("records"),
+                   shared_master=ds.dim_outlet[ds.dim_outlet["dq_outlet_name_shared_in_branch"]].to_dict("records"),
+                   recon=recon_summary(ds), loaded_at=ds.source.get("loaded_at", ""))
+        if fact.empty:
+            return ctx
+        k = an.kpis(fact, period)
+        week = an.weekly(fact, period)
         region = an.breakdown(fact, "region", period)
         brand = an.breakdown(fact, "brand", period)
+        heat = an.heatmap(fact, period)
         weak = an.weakest_outlets(fact, ds.dim_outlet, period, 5)
-        s = build_summary(ds, user, period)
-        st = ds.result.rule_stats
+        label = "" if scope.regions is None and scope.brands is None else scope.label
+        if filters:
+            label = (label + " " if label else "") + ", ".join(filters.values())
+        s = build_summary(ds, user, period, fact if filters else None, label if filters else None)
+        spark = {key: views.sparkline([w[key] for w in week]) for key in ("net_sales_idr", "qty_carton", "invoices", "avg_invoice_idr", "discount_pct")}
         ctx.update(
-            ds=ds, scope=scope, period=period, months=months, period_label=fmt.period_label(period, months), totals=totals,
-            mom=an.mom(fact), region=region, brand=brand, weak=weak, summary=s, rules=RULES, rule_stats=st,
-            dq_rows=[r for r in RULES if st[r.rule_id]["rows"] or st[r.rule_id]["entities"]],
-            quarantine=ds.result.quarantine.to_dict("records"),
-            returns=fact[fact["is_return"]].to_dict("records"),
-            inferred=ds.result.dq_log[ds.result.dq_log["rule_id"] == "DQ-05"].to_dict("records"),
-            shared_master=ds.dim_outlet[ds.dim_outlet["dq_outlet_name_shared_in_branch"]].to_dict("records"),
-            empty=fact.empty, telegram_enabled=settings.telegram_enabled,
+            totals=k, kpis=k, mom=an.mom(fact), weekly=week, sparks=spark, region=region, brand=brand, heat=heat, weak=weak,
+            bullets={w.outlet_id: views.bullet(w.net_sales_idr, w.peer_median_idr) for w in weak},
+            summary=s, headlines=an.headlines(fact, ds.dim_outlet, period, region, brand, weak),
+            chart=views.chart_payload(region, brand, heat, period),
         )
         return ctx
 
@@ -315,6 +366,16 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         s = build_summary(ds, user, period_arg(request, ds.fact))
         return {"text": s.text, "source": s.source, "chars": len(s.text), "fallback_reason": s.fallback_reason}
 
+    @app.get("/summary/print", response_class=HTMLResponse)
+    async def summary_print(request: Request):
+        user = current_user(request)
+        ds = store.active
+        if ds is None:
+            raise HTTPException(404)
+        period = period_arg(request, ds.fact)
+        s = build_summary(ds, user, period)
+        return templates.TemplateResponse(request, "print.html", {"text": s.text, "period_label": fmt.period_label(period, an.months(ds.fact)), "loaded_at": ds.source.get("loaded_at", "")})
+
     @app.post("/api/chat")
     async def api_chat(request: Request):
         user = current_user(request)
@@ -386,6 +447,8 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         except (InputError, ContractError) as exc:
             metrics.uploads.labels("rejected").inc()
             audit.write("upload", user.username, "rejected", filename=name[:80], bytes=len(data), reason=str(exc)[:200])
+            if wants_json(request):
+                return JSONResponse({"ok": False, "message": str(exc), "details": getattr(exc, "details", {})}, status_code=400)
             return _upload_error(request, user, str(exc), getattr(exc, "details", None))
         summary_cache.clear()
         metrics.uploads.labels("accepted").inc()
@@ -393,10 +456,17 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         refresh_dataset_metrics()
         audit.write("upload", user.username, "accepted", filename=name[:80], sha256=ds.source["sha256"], rows=ds.result.meta["rows_in"],
                     quarantined=ds.result.meta["rows_quarantined"])
+        flash = (f"File {name} diterima: {ds.result.meta['rows_in']} baris, {ds.result.meta['rows_clean']} bersih, "
+                 f"{ds.result.meta['rows_quarantined']} dikarantina. Lihat Kualitas data.")
+        if wants_json(request):
+            return {"ok": True, "message": flash}
         ctx = dashboard_context(request, user, "all")
         ctx["flash"] = (f"File {name} diterima: {ds.result.meta['rows_in']} baris, {ds.result.meta['rows_clean']} bersih, "
                         f"{ds.result.meta['rows_quarantined']} dikarantina. Lihat panel Kualitas data.")
         return templates.TemplateResponse(request, "index.html", ctx)
+
+    def wants_json(request: Request) -> bool:
+        return "application/json" in request.headers.get("accept", "")
 
     def _upload_error(request: Request, user, message: str, details: dict | None = None):
         ctx = dashboard_context(request, user)
