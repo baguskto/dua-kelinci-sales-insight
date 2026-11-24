@@ -748,7 +748,7 @@ def main() -> None:
 
     settings = from_env()
     app = create_app(settings)
-    shown_host = "127.0.0.1" if settings.host in ("0.0.0.0", "127.0.0.1") else settings.host  # noqa: S104
+    shown_host = "127.0.0.1" if settings.host in ("0.0.0.0", "127.0.0.1") else settings.host  # noqa: S104  # nosec B104 - display only
     print(f"Dua Kelinci Sales Insight berjalan di http://{shown_host}:{settings.port}", flush=True)
     uvicorn.run(
         app,

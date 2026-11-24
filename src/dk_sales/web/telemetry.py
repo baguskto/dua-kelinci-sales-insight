@@ -158,7 +158,7 @@ class Tracer:
         return self.client is not None
 
     def trace(self, name: str, **kwargs) -> TraceHandle:
-        if not self.client or random.random() > self.sample_rate:
+        if not self.client or random.random() > self.sample_rate:  # nosec B311 - sampling, not security
             return TraceHandle(None)
         try:
             span = self.client.start_span(name=name, **kwargs)

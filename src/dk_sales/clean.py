@@ -705,5 +705,6 @@ def _finish(df, raw, quarantine, log, stats, meta, empty: bool = False) -> Clean
     else:
         df["dq_flags"] = df.apply(lambda r: ";".join(c for c in FLAG_COLUMNS if r[c]), axis=1)
     meta.update(rows_clean=int(len(df)), rows_quarantined=int(len(q)))
-    assert meta["rows_in"] == meta["rows_clean"] + meta["rows_quarantined"], "row conservation violated"
+    if meta["rows_in"] != meta["rows_clean"] + meta["rows_quarantined"]:
+        raise RuntimeError("row conservation violated: a row was dropped without a quarantine record")
     return CleanResult(raw=raw, lines=df, quarantine=q, dq_log=log.frame(), rule_stats=stats, meta=meta)
