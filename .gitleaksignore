@@ -1,0 +1,4 @@
+# Historic findings: a fake SECRET_KEY string in a production-config test fixture (not a real secret).
+# The test now generates the key at runtime. History is not rewritten because it is already pushed.
+a7f6e0df7352f50e4d68c6525f49178473eed411:tests/test_web.py:generic-api-key:325
+a50fcfef9e7f9fc7a440ac3f293ca503203cbfaa:tests/test_web.py:generic-api-key:312

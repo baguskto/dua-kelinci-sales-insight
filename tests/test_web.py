@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import secrets
 import re
 import zipfile
 
@@ -322,8 +323,8 @@ def test_production_accepts_safe_config(users_file):
             "APP_ENV": "production",
             "AUTH_MODE": "local",
             "LOCAL_USERS_FILE": str(users_file),
-            "SECRET_KEY": "Zq8v1pR4kT7wY2nB5mC9xL3sD6fH0jG8aE1uI4oP",
-            "ALLOWED_HOSTS": "sales.duakelinci.local",  # gitleaks:allow (test fixture)
+            "SECRET_KEY": secrets.token_urlsafe(32),
+            "ALLOWED_HOSTS": "sales.duakelinci.local",
             "FORCE_HTTPS": "true",
             "TRUSTED_PROXIES": "172.20.0.10",
             "METRICS_TOKEN": "t" * 32,
