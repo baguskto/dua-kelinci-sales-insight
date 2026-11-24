@@ -3,5 +3,6 @@
   <label class="sr-only" for="upload-file">File penjualan</label>
   <input id="upload-file" type="file" name="file" accept=".csv,.xlsx,.txt" required>
   <button type="submit">Unggah dan periksa</button>
-  <span class="small">CSV atau .xlsx, maksimal {{ settings.max_upload_mb }} MB dan {{ '{:,}'.format(settings.max_upload_rows).replace(',', '.') }} baris. Diperiksa dengan kontrak dan aturan yang sama.</span>
+  <progress id="upload-progress" max="100" value="0" hidden></progress>
+  <span id="upload-status" class="small" role="status" aria-live="polite">CSV atau .xlsx, maksimal {{ settings.max_upload_mb }} MB dan {{ '{:,}'.format(settings.max_upload_rows).replace(',', '.') }} baris. Diperiksa dengan kontrak dan aturan yang sama.</span>
 </form>
