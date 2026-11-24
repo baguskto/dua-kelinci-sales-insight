@@ -1,0 +1,878 @@
+{
+  "brand_per_sku": {
+    "Deka Wafer Cokelat 120g": [
+      "Deka"
+    ],
+    "Kacang Atom 40g": [
+      "Kacang Dua Kelinci"
+    ],
+    "Kacang Kulit 250g": [
+      "Kacang Dua Kelinci"
+    ],
+    "Kacang Kulit 70g": [
+      "Kacang Dua Kelinci"
+    ],
+    "Pilus Garuda Rumput Laut 95g": [
+      "Pilus"
+    ],
+    "Roni Mie Goreng 30g": [
+      "Roni"
+    ],
+    "Sukro Original 100g": [
+      "Sukro"
+    ],
+    "Sukro Pedas 100g": [
+      "Sukro"
+    ],
+    "Tic Tac Original 80g": [
+      "Tic Tac"
+    ],
+    "Tic Tac Sapi Panggang 80g": [
+      "Tic Tac"
+    ],
+    "Tos Tos Tortilla BBQ 140g": [
+      "Tos Tos"
+    ],
+    "Tos Tos Tortilla Nacho 65g": [
+      "Tos Tos"
+    ],
+    "Usagi Wheat Puffs 45g": [
+      "Usagi"
+    ]
+  },
+  "calendar": {
+    "days_in_range": 61,
+    "days_with_rows": 54,
+    "days_without_rows": [
+      "2026-09-06 (Minggu)",
+      "2026-09-13 (Minggu)",
+      "2026-09-20 (Minggu)",
+      "2026-10-04 (Minggu)",
+      "2026-10-11 (Minggu)",
+      "2026-10-18 (Minggu)",
+      "2026-10-25 (Minggu)"
+    ],
+    "rows_per_weekday": {
+      "Jumat": 309,
+      "Kamis": 332,
+      "Minggu": 1,
+      "Rabu": 334,
+      "Sabtu": 332,
+      "Selasa": 308,
+      "Senin": 275
+    }
+  },
+  "column_names": [
+    "date",
+    "invoice_no",
+    "region",
+    "branch",
+    "outlet_id",
+    "outlet_name",
+    "outlet_type",
+    "salesman",
+    "brand",
+    "sku",
+    "qty_carton",
+    "price_per_carton_idr",
+    "gross_sales_idr",
+    "discount_idr",
+    "net_sales_idr"
+  ],
+  "column_profile": {
+    "branch": {
+      "blank": 0,
+      "distinct": 13,
+      "distinct_after_trim_casefold": 13,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "Balikpapan": 113,
+        "Bandung": 215,
+        "Banjarmasin": 66,
+        "Bekasi": 153,
+        "Cirebon": 178,
+        "Jakarta Barat": 144,
+        "Malang": 139,
+        "Medan": 155,
+        "Palembang": 127,
+        "Semarang": 111,
+        "Solo": 142,
+        "Surabaya": 141,
+        "Tangerang": 207
+      }
+    },
+    "brand": {
+      "blank": 0,
+      "distinct": 8,
+      "distinct_after_trim_casefold": 8,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "Deka": 84,
+        "Kacang Dua Kelinci": 713,
+        "Pilus": 86,
+        "Roni": 64,
+        "Sukro": 325,
+        "Tic Tac": 247,
+        "Tos Tos": 299,
+        "Usagi": 73
+      }
+    },
+    "date": {
+      "blank": 0,
+      "distinct": 54,
+      "distinct_after_trim_casefold": 54,
+      "inferred_type": "date",
+      "leading_trailing_space": 0,
+      "max": "2026-10-31",
+      "min": "2026-09-01",
+      "values": {
+        "2026-09-01": 43,
+        "2026-09-02": 46,
+        "2026-09-03": 33,
+        "2026-09-04": 34,
+        "2026-09-05": 31,
+        "2026-09-07": 48,
+        "2026-09-08": 20,
+        "2026-09-09": 37,
+        "2026-09-10": 49,
+        "2026-09-11": 35,
+        "2026-09-12": 29,
+        "2026-09-14": 39,
+        "2026-09-15": 41,
+        "2026-09-16": 35,
+        "2026-09-17": 34,
+        "2026-09-18": 33,
+        "2026-09-19": 37,
+        "2026-09-21": 35,
+        "2026-09-22": 30,
+        "2026-09-23": 39,
+        "2026-09-24": 38,
+        "2026-09-25": 42,
+        "2026-09-26": 29,
+        "2026-09-27": 1,
+        "2026-09-28": 25,
+        "2026-09-29": 34,
+        "2026-09-30": 32,
+        "2026-10-01": 40,
+        "2026-10-02": 35,
+        "2026-10-03": 55,
+        "2026-10-05": 32,
+        "2026-10-06": 42,
+        "2026-10-07": 37,
+        "2026-10-08": 39,
+        "2026-10-09": 26,
+        "2026-10-10": 29,
+        "2026-10-12": 29,
+        "2026-10-13": 30,
+        "2026-10-14": 33,
+        "2026-10-15": 20,
+        "2026-10-16": 25,
+        "2026-10-17": 41,
+        "2026-10-19": 38,
+        "2026-10-20": 31,
+        "2026-10-21": 35,
+        "2026-10-22": 39,
+        "2026-10-23": 48,
+        "2026-10-24": 34,
+        "2026-10-26": 29,
+        "2026-10-27": 37,
+        "2026-10-28": 40,
+        "2026-10-29": 40,
+        "2026-10-30": 31,
+        "2026-10-31": 47
+      }
+    },
+    "discount_idr": {
+      "blank": 0,
+      "distinct": 215,
+      "distinct_after_trim_casefold": 215,
+      "inferred_type": "integer",
+      "leading_trailing_space": 0,
+      "negative": 0,
+      "stats": {
+        "25%": 0,
+        "50%": 3100,
+        "75%": 19800,
+        "count": 1891,
+        "max": 234000,
+        "mean": 16073.56,
+        "min": 0,
+        "std": 27994.29
+      },
+      "zero": 940
+    },
+    "gross_sales_idr": {
+      "blank": 0,
+      "distinct": 127,
+      "distinct_after_trim_casefold": 127,
+      "inferred_type": "integer",
+      "leading_trailing_space": 0,
+      "negative": 1,
+      "stats": {
+        "25%": 336000,
+        "50%": 624000,
+        "75%": 1248000,
+        "count": 1891,
+        "max": 4680000,
+        "mean": 929895.29,
+        "min": -528000,
+        "std": 837071.75
+      },
+      "zero": 0
+    },
+    "invoice_no": {
+      "blank": 0,
+      "distinct": 824,
+      "distinct_after_trim_casefold": 824,
+      "inferred_type": "string",
+      "leading_trailing_space": 0
+    },
+    "net_sales_idr": {
+      "blank": 0,
+      "distinct": 396,
+      "distinct_after_trim_casefold": 396,
+      "inferred_type": "integer",
+      "leading_trailing_space": 0,
+      "negative": 1,
+      "stats": {
+        "25%": 336000,
+        "50%": 624000,
+        "75%": 1194000,
+        "count": 1891,
+        "max": 4680000,
+        "mean": 913821.73,
+        "min": -528000,
+        "std": 823415.58
+      },
+      "zero": 0
+    },
+    "outlet_id": {
+      "blank": 0,
+      "distinct": 52,
+      "distinct_after_trim_casefold": 52,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "OUT1001": 22,
+        "OUT1002": 39,
+        "OUT1003": 3,
+        "OUT1004": 80,
+        "OUT1005": 33,
+        "OUT1006": 52,
+        "OUT1007": 96,
+        "OUT1008": 26,
+        "OUT1009": 49,
+        "OUT1010": 33,
+        "OUT1011": 25,
+        "OUT1012": 46,
+        "OUT1013": 55,
+        "OUT1014": 85,
+        "OUT1015": 52,
+        "OUT1016": 23,
+        "OUT1017": 58,
+        "OUT1018": 15,
+        "OUT1019": 58,
+        "OUT1020": 47,
+        "OUT1021": 27,
+        "OUT1022": 22,
+        "OUT1023": 31,
+        "OUT1024": 31,
+        "OUT1025": 69,
+        "OUT1026": 5,
+        "OUT1027": 36,
+        "OUT1028": 32,
+        "OUT1029": 42,
+        "OUT1030": 39,
+        "OUT1031": 28,
+        "OUT1032": 32,
+        "OUT1033": 37,
+        "OUT1034": 35,
+        "OUT1035": 5,
+        "OUT1036": 62,
+        "OUT1037": 73,
+        "OUT1038": 41,
+        "OUT1039": 29,
+        "OUT1040": 12,
+        "OUT1041": 38,
+        "OUT1042": 6,
+        "OUT1043": 22,
+        "OUT1044": 61,
+        "OUT1045": 6,
+        "OUT1046": 31,
+        "OUT1047": 14,
+        "OUT1048": 15,
+        "OUT1049": 28,
+        "OUT1050": 43,
+        "OUT1051": 17,
+        "OUT1052": 25
+      }
+    },
+    "outlet_name": {
+      "blank": 0,
+      "distinct": 45,
+      "distinct_after_trim_casefold": 42,
+      "inferred_type": "string",
+      "leading_trailing_space": 4,
+      "values": {
+        "Grosir Berkah": 78,
+        "Grosir Berkah ": 2,
+        "Grosir Harapan Baru": 96,
+        "Grosir Lancar Jaya": 62,
+        "Grosir Sentosa": 85,
+        "Grosir Sinar Abadi": 43,
+        "Grosir Sumber Alam": 69,
+        "Grosir Sumber Makmur": 73,
+        "Grosir Sumber Rejeki": 61,
+        "Minimarket Berkah": 23,
+        "Minimarket Bintang": 41,
+        "Minimarket Murah Meriah": 49,
+        "Minimarket Sentosa": 36,
+        "Minimarket Sido Muncul": 22,
+        "Minimarket Sumber Alam": 35,
+        "Toko Anugerah": 75,
+        "Toko Bintang": 77,
+        "Toko Cahaya": 42,
+        "Toko Jaya Abadi": 52,
+        "Toko Kencana": 32,
+        "Toko Lancar Jaya": 26,
+        "Toko Maju Lancar": 25,
+        "Toko Makmur Jaya": 58,
+        "Toko Mandiri": 33,
+        "Toko Mekar": 15,
+        "Toko Mulia": 44,
+        "Toko Murah Meriah": 31,
+        "Toko Murah Meriah ": 1,
+        "Toko Pelangi": 58,
+        "Toko Sejahtera": 33,
+        "Toko Sido Muncul": 81,
+        "Toko Sinar Abadi": 37,
+        "Toko Sumber Rejeki": 32,
+        "Toko Sumber Rejeki ": 1,
+        "Warung Berkah": 47,
+        "Warung Harapan Baru": 68,
+        "Warung Maju Lancar": 5,
+        "Warung Mandiri": 28,
+        "Warung Mulia": 39,
+        "Warung Murah Meriah": 15,
+        "Warung Sentosa": 25,
+        "Warung Sido Muncul": 28,
+        "Warung Sinar Abadi": 46,
+        "Warung Sumber Alam": 48,
+        "Warung Sumber Makmur": 14
+      }
+    },
+    "outlet_type": {
+      "blank": 0,
+      "distinct": 4,
+      "distinct_after_trim_casefold": 4,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "Grosir": 569,
+        "Minimarket": 206,
+        "Toko Kelontong": 753,
+        "Warung": 363
+      }
+    },
+    "price_per_carton_idr": {
+      "blank": 0,
+      "distinct": 11,
+      "distinct_after_trim_casefold": 11,
+      "inferred_type": "integer",
+      "leading_trailing_space": 0,
+      "negative": 0,
+      "stats": {
+        "25%": 168000,
+        "50%": 186000,
+        "75%": 216000,
+        "count": 1891,
+        "max": 312000,
+        "mean": 201318.88,
+        "min": 120000,
+        "std": 52331.07
+      },
+      "values": {
+        "120000": 64,
+        "144000": 73,
+        "156000": 230,
+        "168000": 247,
+        "174000": 86,
+        "186000": 325,
+        "192000": 155,
+        "198000": 236,
+        "216000": 84,
+        "264000": 144,
+        "312000": 247
+      },
+      "zero": 0
+    },
+    "qty_carton": {
+      "blank": 0,
+      "distinct": 16,
+      "distinct_after_trim_casefold": 16,
+      "inferred_type": "integer",
+      "leading_trailing_space": 0,
+      "negative": 1,
+      "stats": {
+        "25%": 2,
+        "50%": 3,
+        "75%": 6,
+        "count": 1891,
+        "max": 15,
+        "mean": 4.63,
+        "min": -2,
+        "std": 3.91
+      },
+      "values": {
+        "-2": 1,
+        "1": 354,
+        "10": 51,
+        "11": 51,
+        "12": 44,
+        "13": 47,
+        "14": 47,
+        "15": 53,
+        "2": 336,
+        "3": 286,
+        "4": 382,
+        "5": 44,
+        "6": 53,
+        "7": 39,
+        "8": 57,
+        "9": 46
+      },
+      "zero": 0
+    },
+    "region": {
+      "blank": 0,
+      "distinct": 10,
+      "distinct_after_trim_casefold": 7,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "JABODETABEK": 1,
+        "JAWA BARAT": 4,
+        "JAWA TIMUR": 1,
+        "Jabar": 4,
+        "Jabodetabek": 503,
+        "Jawa Barat": 385,
+        "Jawa Tengah": 253,
+        "Jawa Timur": 279,
+        "Kalimantan": 179,
+        "Sumatera": 282
+      }
+    },
+    "salesman": {
+      "blank": 5,
+      "distinct": 27,
+      "distinct_after_trim_casefold": 27,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "": 5,
+        "Agus": 33,
+        "Andi": 87,
+        "Bayu": 32,
+        "Budi": 57,
+        "Citra": 111,
+        "Dedi": 96,
+        "Dewi": 63,
+        "Eko": 77,
+        "Fajar": 76,
+        "Feri": 50,
+        "Gita": 118,
+        "Hendra": 97,
+        "Indra": 59,
+        "Joko": 118,
+        "Kurnia": 63,
+        "Lestari": 47,
+        "Made": 63,
+        "Nanda": 79,
+        "Oki": 72,
+        "Putri": 69,
+        "Rizal": 67,
+        "Sari": 71,
+        "Teguh": 79,
+        "Wahyu": 75,
+        "Yudi": 72,
+        "Zaki": 55
+      }
+    },
+    "sku": {
+      "blank": 0,
+      "distinct": 13,
+      "distinct_after_trim_casefold": 13,
+      "inferred_type": "string",
+      "leading_trailing_space": 0,
+      "values": {
+        "Deka Wafer Cokelat 120g": 84,
+        "Kacang Atom 40g": 230,
+        "Kacang Kulit 250g": 247,
+        "Kacang Kulit 70g": 236,
+        "Pilus Garuda Rumput Laut 95g": 86,
+        "Roni Mie Goreng 30g": 64,
+        "Sukro Original 100g": 148,
+        "Sukro Pedas 100g": 177,
+        "Tic Tac Original 80g": 128,
+        "Tic Tac Sapi Panggang 80g": 119,
+        "Tos Tos Tortilla BBQ 140g": 144,
+        "Tos Tos Tortilla Nacho 65g": 155,
+        "Usagi Wheat Puffs 45g": 73
+      }
+    }
+  },
+  "columns": 15,
+  "date_range": {
+    "max": "2026-10-31",
+    "min": "2026-09-01"
+  },
+  "discount_rate_pct": {
+    "0.0": 940,
+    "1.98": 3,
+    "1.99": 91,
+    "2.0": 155,
+    "2.01": 48,
+    "2.02": 11,
+    "2.98": 5,
+    "2.99": 35,
+    "3.0": 169,
+    "3.01": 84,
+    "3.02": 4,
+    "5.0": 346
+  },
+  "exact_duplicate_rows": 3,
+  "file_is_sorted_by_date": true,
+  "invoices": {
+    "by_prefix": {
+      "INV": 823,
+      "RTR": 1
+    },
+    "distinct_invoices": 824,
+    "invoices_with_multiple_dates": 0,
+    "lines_per_invoice": {
+      "1": 234,
+      "2": 245,
+      "3": 213,
+      "4": 132
+    },
+    "net_per_invoice_idr": {
+      "25%": 779050,
+      "50%": 1386400,
+      "75%": 2421450,
+      "count": 824,
+      "max": 10764000,
+      "mean": 2097132.16,
+      "min": -528000,
+      "std": 2117245.38
+    },
+    "qty_per_invoice": {
+      "25%": 4,
+      "50%": 7,
+      "75%": 12,
+      "count": 824,
+      "max": 55,
+      "mean": 10.62,
+      "min": -2,
+      "std": 10.59
+    },
+    "sale_number_gaps": [],
+    "sale_number_max": 500823,
+    "sale_number_min": 500001
+  },
+  "price_per_sku": {
+    "Deka Wafer Cokelat 120g": [
+      216000
+    ],
+    "Kacang Atom 40g": [
+      156000
+    ],
+    "Kacang Kulit 250g": [
+      312000
+    ],
+    "Kacang Kulit 70g": [
+      198000
+    ],
+    "Pilus Garuda Rumput Laut 95g": [
+      174000
+    ],
+    "Roni Mie Goreng 30g": [
+      120000
+    ],
+    "Sukro Original 100g": [
+      186000
+    ],
+    "Sukro Pedas 100g": [
+      186000
+    ],
+    "Tic Tac Original 80g": [
+      168000
+    ],
+    "Tic Tac Sapi Panggang 80g": [
+      168000
+    ],
+    "Tos Tos Tortilla BBQ 140g": [
+      264000
+    ],
+    "Tos Tos Tortilla Nacho 65g": [
+      192000
+    ],
+    "Usagi Wheat Puffs 45g": [
+      144000
+    ]
+  },
+  "qty_by_outlet_type": {
+    "Grosir": {
+      "25%": 7,
+      "50%": 10,
+      "75%": 13,
+      "count": 569,
+      "max": 15,
+      "mean": 9.65,
+      "min": 4,
+      "std": 3.4
+    },
+    "Minimarket": {
+      "25%": 1,
+      "50%": 2,
+      "75%": 4,
+      "count": 206,
+      "max": 4,
+      "mean": 2.45,
+      "min": 1,
+      "std": 1.15
+    },
+    "Toko Kelontong": {
+      "25%": 1,
+      "50%": 2,
+      "75%": 4,
+      "count": 753,
+      "max": 4,
+      "mean": 2.43,
+      "min": 1,
+      "std": 1.15
+    },
+    "Warung": {
+      "25%": 2,
+      "50%": 3,
+      "75%": 4,
+      "count": 363,
+      "max": 4,
+      "mean": 2.55,
+      "min": -2,
+      "std": 1.16
+    }
+  },
+  "rows": 1891,
+  "rows_per_branch": {
+    "Balikpapan": 113,
+    "Bandung": 215,
+    "Banjarmasin": 66,
+    "Bekasi": 153,
+    "Cirebon": 178,
+    "Jakarta Barat": 144,
+    "Malang": 139,
+    "Medan": 155,
+    "Palembang": 127,
+    "Semarang": 111,
+    "Solo": 142,
+    "Surabaya": 141,
+    "Tangerang": 207
+  },
+  "rows_per_brand": {
+    "Deka": 84,
+    "Kacang Dua Kelinci": 713,
+    "Pilus": 86,
+    "Roni": 64,
+    "Sukro": 325,
+    "Tic Tac": 247,
+    "Tos Tos": 299,
+    "Usagi": 73
+  },
+  "rows_per_day": {
+    "2026-09-01": 43,
+    "2026-09-02": 46,
+    "2026-09-03": 33,
+    "2026-09-04": 34,
+    "2026-09-05": 31,
+    "2026-09-07": 48,
+    "2026-09-08": 20,
+    "2026-09-09": 37,
+    "2026-09-10": 49,
+    "2026-09-11": 35,
+    "2026-09-12": 29,
+    "2026-09-14": 39,
+    "2026-09-15": 41,
+    "2026-09-16": 35,
+    "2026-09-17": 34,
+    "2026-09-18": 33,
+    "2026-09-19": 37,
+    "2026-09-21": 35,
+    "2026-09-22": 30,
+    "2026-09-23": 39,
+    "2026-09-24": 38,
+    "2026-09-25": 42,
+    "2026-09-26": 29,
+    "2026-09-27": 1,
+    "2026-09-28": 25,
+    "2026-09-29": 34,
+    "2026-09-30": 32,
+    "2026-10-01": 40,
+    "2026-10-02": 35,
+    "2026-10-03": 55,
+    "2026-10-05": 32,
+    "2026-10-06": 42,
+    "2026-10-07": 37,
+    "2026-10-08": 39,
+    "2026-10-09": 26,
+    "2026-10-10": 29,
+    "2026-10-12": 29,
+    "2026-10-13": 30,
+    "2026-10-14": 33,
+    "2026-10-15": 20,
+    "2026-10-16": 25,
+    "2026-10-17": 41,
+    "2026-10-19": 38,
+    "2026-10-20": 31,
+    "2026-10-21": 35,
+    "2026-10-22": 39,
+    "2026-10-23": 48,
+    "2026-10-24": 34,
+    "2026-10-26": 29,
+    "2026-10-27": 37,
+    "2026-10-28": 40,
+    "2026-10-29": 40,
+    "2026-10-30": 31,
+    "2026-10-31": 47
+  },
+  "rows_per_month": {
+    "2026-09": 929,
+    "2026-10": 962
+  },
+  "rows_per_outlet": {
+    "OUT1001": 22,
+    "OUT1002": 39,
+    "OUT1003": 3,
+    "OUT1004": 80,
+    "OUT1005": 33,
+    "OUT1006": 52,
+    "OUT1007": 96,
+    "OUT1008": 26,
+    "OUT1009": 49,
+    "OUT1010": 33,
+    "OUT1011": 25,
+    "OUT1012": 46,
+    "OUT1013": 55,
+    "OUT1014": 85,
+    "OUT1015": 52,
+    "OUT1016": 23,
+    "OUT1017": 58,
+    "OUT1018": 15,
+    "OUT1019": 58,
+    "OUT1020": 47,
+    "OUT1021": 27,
+    "OUT1022": 22,
+    "OUT1023": 31,
+    "OUT1024": 31,
+    "OUT1025": 69,
+    "OUT1026": 5,
+    "OUT1027": 36,
+    "OUT1028": 32,
+    "OUT1029": 42,
+    "OUT1030": 39,
+    "OUT1031": 28,
+    "OUT1032": 32,
+    "OUT1033": 37,
+    "OUT1034": 35,
+    "OUT1035": 5,
+    "OUT1036": 62,
+    "OUT1037": 73,
+    "OUT1038": 41,
+    "OUT1039": 29,
+    "OUT1040": 12,
+    "OUT1041": 38,
+    "OUT1042": 6,
+    "OUT1043": 22,
+    "OUT1044": 61,
+    "OUT1045": 6,
+    "OUT1046": 31,
+    "OUT1047": 14,
+    "OUT1048": 15,
+    "OUT1049": 28,
+    "OUT1050": 43,
+    "OUT1051": 17,
+    "OUT1052": 25
+  },
+  "rows_per_outlet_type": {
+    "Grosir": 569,
+    "Minimarket": 206,
+    "Toko Kelontong": 753,
+    "Warung": 363
+  },
+  "rows_per_region_raw": {
+    "JABODETABEK": 1,
+    "JAWA BARAT": 4,
+    "JAWA TIMUR": 1,
+    "Jabar": 4,
+    "Jabodetabek": 503,
+    "Jawa Barat": 385,
+    "Jawa Tengah": 253,
+    "Jawa Timur": 279,
+    "Kalimantan": 179,
+    "Sumatera": 282
+  },
+  "rows_per_salesman": {
+    "(kosong)": 5,
+    "Agus": 33,
+    "Andi": 87,
+    "Bayu": 32,
+    "Budi": 57,
+    "Citra": 111,
+    "Dedi": 96,
+    "Dewi": 63,
+    "Eko": 77,
+    "Fajar": 76,
+    "Feri": 50,
+    "Gita": 118,
+    "Hendra": 97,
+    "Indra": 59,
+    "Joko": 118,
+    "Kurnia": 63,
+    "Lestari": 47,
+    "Made": 63,
+    "Nanda": 79,
+    "Oki": 72,
+    "Putri": 69,
+    "Rizal": 67,
+    "Sari": 71,
+    "Teguh": 79,
+    "Wahyu": 75,
+    "Yudi": 72,
+    "Zaki": 55
+  },
+  "rows_per_sku": {
+    "Deka Wafer Cokelat 120g": 84,
+    "Kacang Atom 40g": 230,
+    "Kacang Kulit 250g": 247,
+    "Kacang Kulit 70g": 236,
+    "Pilus Garuda Rumput Laut 95g": 86,
+    "Roni Mie Goreng 30g": 64,
+    "Sukro Original 100g": 148,
+    "Sukro Pedas 100g": 177,
+    "Tic Tac Original 80g": 128,
+    "Tic Tac Sapi Panggang 80g": 119,
+    "Tos Tos Tortilla BBQ 140g": 144,
+    "Tos Tos Tortilla Nacho 65g": 155,
+    "Usagi Wheat Puffs 45g": 73
+  },
+  "sha256": "48b9f90ddaa91e0033ada4feb3cb47a8aaf490774165d266223be1da34e6741f",
+  "source": "data/raw/sales_raw.csv",
+  "totals_raw": {
+    "discount_idr": 30395100,
+    "gross_sales_idr": 1758432000,
+    "net_sales_idr": 1728036900,
+    "price_per_carton_idr": 380694000,
+    "qty_carton": 8754
+  }
+}
