@@ -1,0 +1,20 @@
+# Run the ops stack with docker compose under systemd.
+# Install: copy the repo to /opt/dua-kelinci, run `make ops-secrets` there, then
+#   sudo cp ops/systemd/dua-kelinci-compose.service /etc/systemd/system/ && sudo systemctl enable --now dua-kelinci-compose
+[Unit]
+Description=Dua Kelinci Sales Insight (docker compose, ops profile)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/dua-kelinci
+ExecStart=/usr/bin/docker compose --profile ops up -d --remove-orphans
+ExecStop=/usr/bin/docker compose --profile ops down
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
