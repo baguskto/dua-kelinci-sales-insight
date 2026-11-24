@@ -1,5 +1,7 @@
 # Penjualan Dua Kelinci
 
+[![ci](https://github.com/baguskto/dua-kelinci-sales-insight/actions/workflows/ci.yml/badge.svg)](https://github.com/baguskto/dua-kelinci-sales-insight/actions/workflows/ci.yml)
+
 Aplikasi web kecil untuk sales manager: penjualan per region dan brand, 5 outlet terlemah dibanding outlet sejenis, dan satu paragraf ringkasan yang siap dikirim ke Telegram. Data mentah dibersihkan dengan 27 aturan kualitas data yang bisa diperiksa, dan ada kolom "Tanya data" yang menjawab hanya dari angka di file.
 
 ![Dashboard](docs/img/dashboard-desktop.png)
