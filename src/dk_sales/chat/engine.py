@@ -104,8 +104,9 @@ class ChatEngine:
         t0 = time.perf_counter()
         trace = self.tracer.trace("chat_turn", metadata={"user_role": ",".join(user.roles), "mode": self.mode}) if self.tracer else None
         q = strip_control(question or "").strip()
-        if self.tracer and trace and not self.tracer.mask:
-            trace.update(input=q)
+        if trace:
+            # Question text stays out of traces unless LOG_QUESTION_TEXT=true.
+            trace.update(input=q if (self.tracer and not self.tracer.mask) else {"question": "[disembunyikan]", "chars": len(q)})
         reply = self._answer(q, dataset, user, session_key, trace)
         reply.latency_ms = int((time.perf_counter() - t0) * 1000)
         if self.metrics:

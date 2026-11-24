@@ -17,7 +17,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, PlatformCollector, ProcessCollector
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 
@@ -66,6 +66,8 @@ class Metrics:
     def __init__(self) -> None:
         self.registry = CollectorRegistry()
         r = self.registry
+        ProcessCollector(registry=r)
+        PlatformCollector(registry=r)
         self.requests = Counter("http_requests_total", "HTTP requests", ["route", "method", "status"], registry=r)
         self.latency = Histogram(
             "http_request_duration_seconds",
@@ -120,6 +122,9 @@ class AuditLog:
 # Langfuse (optional)
 
 
+BLOCKED_SCOPES = ("fastapi", "starlette", "uvicorn", "opentelemetry.instrumentation.fastapi", "httpx", "requests", "urllib3")
+
+
 class Tracer:
     """Thin wrapper; every method swallows errors so tracing can never break a request."""
 
@@ -139,6 +144,10 @@ class Tracer:
                 public_key=settings.langfuse_public_key,
                 secret_key=settings.langfuse_secret_key,
                 timeout=2,
+                environment=settings.app_env,
+                # Only the app's own spans (chat turns, tool calls, summary). HTTP framework spans would turn
+                # every request, health checks included, into a trace.
+                blocked_instrumentation_scopes=list(BLOCKED_SCOPES),
             )
         except Exception:  # noqa: BLE001 - optional dependency or bad config must not stop the app
             log.warning("langfuse disabled: client init failed")
@@ -153,7 +162,8 @@ class Tracer:
             return TraceHandle(None)
         try:
             span = self.client.start_span(name=name, **kwargs)
-            return TraceHandle(span, self.client)
+            span.update_trace(name=name, metadata=kwargs.get("metadata"))
+            return TraceHandle(span, self.client, root=True)
         except Exception:  # noqa: BLE001
             return TraceHandle(None)
 
@@ -166,8 +176,9 @@ class Tracer:
 
 
 class TraceHandle:
-    def __init__(self, span, client=None):
+    def __init__(self, span, client=None, root: bool = False):
         self.span = span
+        self.root = root
         self.client = client
         self.started = time.perf_counter()
 
@@ -185,6 +196,8 @@ class TraceHandle:
         try:
             if self.span:
                 self.span.update(**kwargs)
+                if self.root:
+                    self.span.update_trace(**{k: v for k, v in kwargs.items() if k in ("input", "output", "metadata")})
         except Exception:  # noqa: BLE001
             log.debug("langfuse call failed")
 
