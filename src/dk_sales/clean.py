@@ -73,8 +73,12 @@ def _norm_header(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(name).strip().lower()).strip("_")
 
 
+# Control and bidi-override characters can hide or reorder text in reports and are a prompt-injection vector.
+_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]")
+
+
 def _norm_text(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", _CONTROL.sub("", value)).strip()
 
 
 def canonical_region(value: str) -> str | None:
@@ -201,7 +205,7 @@ def clean(raw_in: pd.DataFrame, period: tuple[str, str] | None = None, holidays:
         new = df[col].map(_norm_text)
         changed = new != df[col]
         for i in df.index[changed]:
-            log.add(df.at[i, "raw_row_id"], "DQ-04", col, repr(df.at[i, col]), repr(new[i]), "fixed", "Spasi di awal/akhir atau spasi ganda dihapus.")
+            log.add(df.at[i, "raw_row_id"], "DQ-04", col, repr(df.at[i, col]), repr(new[i]), "fixed", "Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus.")
             ws_rows.add(i)
         df[col] = new
     stats["DQ-04"]["rows"] = len(ws_rows)

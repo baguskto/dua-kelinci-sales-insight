@@ -253,7 +253,7 @@
     },
     {
       "id": "DQ-04",
-      "title": "Spasi di awal/akhir teks (misalnya outlet_name)",
+      "title": "Spasi di awal/akhir teks dan karakter kontrol (misalnya outlet_name)",
       "severity": "low",
       "level": "row",
       "action": "fixed",

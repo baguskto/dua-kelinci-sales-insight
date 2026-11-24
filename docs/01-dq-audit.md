@@ -13,7 +13,7 @@ Arti kolom: **baris** = jumlah baris yang terkena aturan di data mentah; **entit
 | DQ-01 | Skema kolom: 15 kolom wajib dengan nama yang dikenal | tinggi | file | 0 | 0 | 0 | ditolak |
 | DQ-02 | Format nilai: tanggal ISO, angka bulat, nomor invoice, kolom wajib terisi | tinggi | row | 0 | 0 | 0 | dikarantina |
 | DQ-03 | Penulisan region tidak baku (huruf besar/kecil, singkatan) | sedang | row | 10 | 0 | 0 | diperbaiki |
-| DQ-04 | Spasi di awal/akhir teks (misalnya outlet_name) | rendah | row | 4 | 0 | 0 | diperbaiki |
+| DQ-04 | Spasi di awal/akhir teks dan karakter kontrol (misalnya outlet_name) | rendah | row | 4 | 0 | 0 | diperbaiki |
 | DQ-05 | Salesman kosong | sedang | row | 5 | 0 | 0 | diisi (inferensi) |
 | DQ-06 | Baris duplikat persis dalam invoice yang sama | tinggi | row | 3 | 3 | 0 | dikarantina |
 | DQ-07 | Baris retur (dokumen RTR, qty dan nilai negatif) | sedang | row | 1 | 0 | 0 | ditandai |
@@ -84,18 +84,18 @@ Retur disimpan sebagai baris tersendiri dengan `is_return = true` dan `document_
 | 642 | 643 | INV500265 | OUT1014 | region | Jabar | Jawa Barat | Region 'Jabar' dipetakan ke nama baku 'Jawa Barat'. |
 | 662 | 663 | INV500274 | OUT1006 | region | JABODETABEK | Jabodetabek | Region 'JABODETABEK' dipetakan ke nama baku 'Jabodetabek'. |
 
-### DQ-04 Spasi di awal/akhir teks (misalnya outlet_name)
+### DQ-04 Spasi di awal/akhir teks dan karakter kontrol (misalnya outlet_name)
 
 - Tingkat: rendah; level: row; tindakan: diperbaiki
 - Jumlah: 4 baris, 0 entitas, sisa setelah cleaning 0
-- Keputusan: Spasi di awal dan akhir semua kolom teks dihapus, spasi ganda di tengah dijadikan satu.
+- Keputusan: Spasi di awal dan akhir semua kolom teks dihapus, spasi ganda di tengah dijadikan satu, karakter kontrol dan pembalik arah teks dibuang.
 
 | raw_row_id | baris file | invoice | outlet | kolom | sebelum | sesudah | alasan |
 |---|---|---|---|---|---|---|---|
-| 163 | 164 | INV500066 | OUT1004 | outlet_name | 'Grosir Berkah ' | 'Grosir Berkah' | Spasi di awal/akhir atau spasi ganda dihapus. |
-| 618 | 619 | INV500257 | OUT1032 | outlet_name | 'Toko Murah Meriah ' | 'Toko Murah Meriah' | Spasi di awal/akhir atau spasi ganda dihapus. |
-| 1265 | 1266 | INV500529 | OUT1004 | outlet_name | 'Grosir Berkah ' | 'Grosir Berkah' | Spasi di awal/akhir atau spasi ganda dihapus. |
-| 1738 | 1739 | INV500734 | OUT1005 | outlet_name | 'Toko Sumber Rejeki ' | 'Toko Sumber Rejeki' | Spasi di awal/akhir atau spasi ganda dihapus. |
+| 163 | 164 | INV500066 | OUT1004 | outlet_name | 'Grosir Berkah ' | 'Grosir Berkah' | Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus. |
+| 618 | 619 | INV500257 | OUT1032 | outlet_name | 'Toko Murah Meriah ' | 'Toko Murah Meriah' | Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus. |
+| 1265 | 1266 | INV500529 | OUT1004 | outlet_name | 'Grosir Berkah ' | 'Grosir Berkah' | Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus. |
+| 1738 | 1739 | INV500734 | OUT1005 | outlet_name | 'Toko Sumber Rejeki ' | 'Toko Sumber Rejeki' | Spasi di awal/akhir, spasi ganda atau karakter kontrol dihapus. |
 
 ### DQ-05 Salesman kosong
 

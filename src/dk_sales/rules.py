@@ -51,11 +51,11 @@ RULES: list[Rule] = [
     ),
     Rule(
         "DQ-04",
-        "Spasi di awal/akhir teks (misalnya outlet_name)",
+        "Spasi di awal/akhir teks dan karakter kontrol (misalnya outlet_name)",
         "low",
         "row",
         "fixed",
-        "Spasi di awal dan akhir semua kolom teks dihapus, spasi ganda di tengah dijadikan satu.",
+        "Spasi di awal dan akhir semua kolom teks dihapus, spasi ganda di tengah dijadikan satu, karakter kontrol dan pembalik arah teks dibuang.",
     ),
     Rule(
         "DQ-05",
