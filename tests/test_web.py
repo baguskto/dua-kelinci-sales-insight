@@ -532,3 +532,24 @@ def test_upload_json_mode_for_progress_bar(client):
     assert ok.status_code == 200 and ok.json()["ok"] is True and "diterima" in ok.json()["message"]
     bad = client.post("/upload", files={"file": ("x.csv", b"a,b\n1,2\n")}, data={"csrf_token": tok}, headers={"Accept": "application/json"})
     assert bad.status_code == 400 and bad.json()["ok"] is False and "Kolom wajib" in bad.json()["message"]
+
+
+def test_summary_llm_polish_is_number_checked(tmp_path):
+    from dk_sales.chat.llm import LLMResponse
+
+    class Polisher:
+        def __init__(self, text):
+            self.text = text
+
+        def create(self, system, messages, tools=None):
+            return LLMResponse([{"type": "text", "text": self.text}], "end_turn", 300, 120)
+
+    base = dict(app_env="test", anthropic_api_key="k", llm_polish_summary=True)
+    good = "Penjualan Sep-Okt 2026 Rp1,73 miliar; Oktober Rp878,4 juta, naik 3,6% dari September."
+    with TestClient(create_app(Settings(data_dir=tmp_path / "a", **base), llm_client=Polisher(good))) as c:
+        s = c.get("/api/summary").json()
+        assert s["source"] == "llm" and s["text"] == good
+    bad = "Penjualan Sep-Okt 2026 Rp2,1 miliar, naik 12%."
+    with TestClient(create_app(Settings(data_dir=tmp_path / "b", **base), llm_client=Polisher(bad))) as c:
+        s = c.get("/api/summary").json()
+        assert s["source"] == "template" and s["fallback_reason"] == "guardrail" and "Rp1,73 miliar" in s["text"]
