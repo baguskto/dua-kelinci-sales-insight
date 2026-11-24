@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # Build stage: install hash-pinned dependencies into a virtualenv and precompile bytecode.
-FROM python:3.12.13-slim-trixie AS build
+FROM python:3.15.1-slim-trixie AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
 COPY requirements-prod.lock .
@@ -11,7 +11,7 @@ COPY app.py sales.csv ./
 RUN /venv/bin/python -m compileall -q /venv src app.py
 
 # Runtime stage: no compilers, no pip cache, non-root, works with a read-only root filesystem.
-FROM python:3.12.13-slim-trixie AS runtime
+FROM python:3.15.1-slim-trixie AS runtime
 LABEL org.opencontainers.image.title="dua-kelinci-sales-insight" \
       org.opencontainers.image.source="https://github.com/baguskto/dua-kelinci-sales-insight" \
       org.opencontainers.image.licenses="Proprietary"
