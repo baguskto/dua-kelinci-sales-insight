@@ -32,7 +32,9 @@ jobs:
       - name: Raw data unchanged and docs match a fresh build
         run: uv run pytest -q tests/test_raw_and_idempotency.py
       - name: Playwright browser
-        run: uv run playwright install --with-deps chromium
+        run: |
+          sudo apt-get update
+          uv run playwright install --with-deps chromium
       - name: Tests with coverage (unit, integration, e2e)
         run: uv run pytest -q --cov --cov-report=term --cov-report=xml
       - name: Chat eval sets (offline)
