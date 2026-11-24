@@ -1,27 +1,47 @@
-# Data penjualan Dua Kelinci
+# Penjualan Dua Kelinci
 
-Pipeline untuk membaca, memeriksa dan membersihkan data penjualan Dua Kelinci September-Oktober 2026 (1.891 baris invoice), lalu menyusunnya menjadi tabel fakta dan dimensi yang siap dipakai dashboard.
+Aplikasi web kecil untuk sales manager: penjualan per region dan brand, 5 outlet terlemah dibanding outlet sejenis, dan satu paragraf ringkasan yang siap dikirim ke Telegram. Data mentah dibersihkan dengan 27 aturan kualitas data yang bisa diperiksa, dan ada kolom "Tanya data" yang menjawab hanya dari angka di file.
 
-## Cara menjalankan
+![Dashboard](docs/img/dashboard-desktop.png)
 
-Butuh [uv](https://docs.astral.sh/uv/) dan `make`.
+## Menjalankan (Python 3.11 atau lebih baru, macOS atau Windows)
 
 ```
-make setup   # pasang Python 3.12 dan dependensi
-make data    # bangun data/processed, docs dan kontrak dari data/raw/sales_raw.csv
-make test    # jalankan semua test
+pip install -r requirements.txt
+python app.py
 ```
 
-Tanpa `make`: `uv sync`, `uv run python -m dk_sales.pipeline`, `uv run pytest`.
+Buka http://127.0.0.1:8000. Tidak perlu akun, kunci API, atau internet setelah instalasi. Data default adalah `sales.csv` di folder ini (sama persis dengan file contoh). File lain (.csv atau .xlsx) bisa diunggah dari panel Kualitas data.
 
-## Isi repo
+Dengan [uv](https://docs.astral.sh/uv/): `uv run app.py`. Dengan Docker: `docker compose up` lalu buka http://127.0.0.1:8000.
 
-- `data/raw/sales_raw.csv`: data mentah, tidak pernah diubah. Hash-nya dicek oleh test.
-- `src/dk_sales/`: kode pipeline (baca file, aturan kualitas data, cleaning, model, rekonsiliasi, dokumen).
-- `data/processed/`: hasil `make data` (Parquet dan CSV), tidak disimpan di git.
-- `docs/01-profiling.md`: profil data mentah.
-- `docs/01-dq-audit.md`: 27 aturan kualitas data, jumlah temuan, contoh baris dan keputusan.
-- `docs/02-data-dictionary.md`: kamus data tabel fakta dan dimensi.
-- `docs/02-data-contract.md`: kontrak input dan output.
-- `docs/02-reconciliation.md`: rekonsiliasi total mentah ke bersih per bulan dan region.
-- `docs/03-phase1-report.md`: laporan fase 1.
+Start pertama sekitar 12 detik karena Python mengompilasi library sekali; start berikutnya sekitar 2 detik.
+
+## Yang perlu diketahui
+
+- Angka utama adalah penjualan neto setelah retur. 3 baris duplikat persis dikeluarkan ke karantina, 1 retur dikurangkan, region dan nama outlet dibakukan. Total mentah ke bersih selisih 0 rupiah.
+- Outlet terlemah = penjualan outlet dibagi median outlet bertipe sama, jadi Warung dibandingkan dengan Warung. Lima outlet terlemah (OUT1003, OUT1026, OUT1045, OUT1042, OUT1035) hanya muncul di blok invoice bernomor di luar urutan. Mereka tetap dihitung dan diberi catatan "Cek data". OUT1001 dan OUT1003 bernama sama di cabang yang sama; keduanya tetap dihitung terpisah dengan catatan kemungkinan data master ganda.
+- Ringkasan Telegram dibangun dari angka yang sudah dihitung, jadi jalan offline. Kirim ke Telegram dan perapian bahasa dengan Claude hanya aktif bila diatur lewat `.env` (lihat `.env.example`); setiap angka hasil AI dicek dulu.
+- "Tanya data" bekerja offline dengan aturan dan template. Bila `ANTHROPIC_API_KEY` diisi, Claude menjawab lewat tool baca-saja, dan jawaban yang angkanya tidak cocok diganti jawaban template.
+
+## Dokumen
+
+- [Audit kualitas data](docs/01-dq-audit.md), [profil data mentah](docs/01-profiling.md), [rekonsiliasi](docs/02-reconciliation.md), [kamus data](docs/02-data-dictionary.md), [kontrak data](docs/02-data-contract.md)
+- [Definisi angka dan outlet terlemah](docs/06-metric-definitions.md)
+- [Konsep UI](docs/05-ui-concept.md) dan [arsitektur](docs/07-architecture.md)
+- [Guardrail chat dan ringkasan](docs/08-guardrails.md)
+- [Yang akan saya bangun berikutnya](docs/09-next-steps.md)
+- Laporan: [fase 1](docs/03-phase1-report.md), [fase 2](docs/04-phase2-report.md)
+
+## Untuk developer
+
+```
+uv sync --all-extras          # dependensi runtime, dev, llm, oidc, observability
+uv run pytest                 # unit, integrasi, e2e (Playwright: uv run playwright install chromium)
+make data                     # bangun ulang data/processed dan dokumen fase 1 dari data/raw
+uv run python scripts/live_eval.py   # set golden dan red-team chat (offline)
+```
+
+## Production
+
+Mode production (login Microsoft Entra ID atau akun lokal, TLS, metrik, log, alert, tracing) dijelaskan di [docs/ops](docs/ops/README.md) dan [docs/security](docs/security/README.md). Laporkan masalah keamanan sesuai [SECURITY.md](SECURITY.md).
