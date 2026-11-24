@@ -141,7 +141,7 @@ def csrf_ok(session_token: str | None, supplied: str | None) -> bool:
     return bool(session_token and supplied and hmac.compare_digest(session_token, supplied))
 
 
-_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​-‏‪-‮⁦-⁩]")
+_CONTROL = re.compile("[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069]")
 
 
 def strip_control(text: str) -> str:
