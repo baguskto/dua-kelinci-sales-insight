@@ -18,3 +18,5 @@ data/processed/*
 !data/processed/.gitkeep
 # Private: recruiter contact and job ad.
 docs/BRIEF.md
+# Runtime data of the app (uploads, audit log).
+var/
