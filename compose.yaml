@@ -1,0 +1,352 @@
+# Default:   docker compose up            -> only the app, http://127.0.0.1:8000, development mode, no keys.
+# Ops stack: make ops-secrets && docker compose --profile ops up -d
+#            -> app in production mode behind Caddy (https://localhost:8443), Prometheus, Grafana, Loki,
+#               Alloy and self-hosted Langfuse v3. Nothing is sent to any cloud service.
+# All images are pinned; every container has a memory limit and a healthcheck where the image allows one.
+
+name: dua-kelinci
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+networks:
+  dk:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  app-data:
+  app-prod-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  langfuse-postgres:
+  langfuse-clickhouse:
+  langfuse-clickhouse-logs:
+  langfuse-minio:
+
+secrets:
+  metrics_token:
+    file: ./ops/secrets/metrics_token
+  grafana_admin_password:
+    file: ./ops/secrets/grafana_admin_password
+  users_json:
+    file: ./ops/secrets/users.json
+
+services:
+  app: &app
+    <<: *hardening
+    build: .
+    image: dua-kelinci-sales:${APP_IMAGE_TAG:-local}
+    # Reviewer path: development mode on 127.0.0.1:8000. The ops .env sets APP_DEV_SCALE=0.
+    scale: ${APP_DEV_SCALE:-1}
+    environment:
+      HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - app-data:/data
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    user: "10001:10001"
+    stop_grace_period: 15s
+    mem_limit: 512m
+    cpus: 1.0
+    networks: [dk]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  # Production mode behind Caddy. Settings come from .env (made by `make ops-secrets`, never committed);
+  # the user file and metrics token are docker secrets. The app refuses to start if anything is unsafe.
+  app-prod:
+    <<: *app
+    profiles: ["ops"]
+    scale: 1
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      HOST: 0.0.0.0
+      APP_ENV: production
+      LOCAL_USERS_FILE: /run/secrets/users_json
+      TRUSTED_PROXIES: 172.28.0.10
+      LANGFUSE_HOST: http://langfuse-web:3000
+    ports: []
+    secrets: [users_json, metrics_token]
+    volumes:
+      - app-prod-data:/data
+    networks:
+      dk:
+        ipv4_address: 172.28.0.20
+
+  caddy:
+    <<: *hardening
+    profiles: ["ops"]
+    image: caddy:2.9.1-alpine
+    depends_on:
+      app-prod: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    read_only: true
+    tmpfs: ["/data:size=16m", "/config:size=8m"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    mem_limit: 64m
+    networks:
+      dk:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://localhost:8443/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  prometheus:
+    <<: *hardening
+    profiles: ["ops"]
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.listen-address=:9090
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    secrets: [metrics_token]
+    read_only: true
+    mem_limit: 256m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  loki:
+    <<: *hardening
+    profiles: ["ops"]
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./ops/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    read_only: true
+    mem_limit: 256m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  alloy:
+    <<: *hardening
+    profiles: ["ops"]
+    image: grafana/alloy:v1.7.1
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./ops/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Read-only access to container logs. Documented in docs/security/threat-model.md.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    tmpfs: ["/var/lib/alloy/data:size=64m"]
+    mem_limit: 128m
+    networks: [dk]
+    depends_on:
+      loki: { condition: service_healthy }
+
+  grafana:
+    <<: *hardening
+    profiles: ["ops"]
+    image: grafana/grafana:11.5.2
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    secrets: [grafana_admin_password]
+    mem_limit: 256m
+    networks: [dk]
+    depends_on:
+      prometheus: { condition: service_healthy }
+      loki: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # --- self-hosted Langfuse v3 -------------------------------------------------------
+  langfuse-postgres:
+    <<: *hardening
+    profiles: ["ops"]
+    image: postgres:16.8-alpine
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD:-}
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse-postgres:/var/lib/postgresql/data
+    mem_limit: 256m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  langfuse-clickhouse:
+    <<: *hardening
+    profiles: ["ops"]
+    image: clickhouse/clickhouse-server:24.12-alpine
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:-}
+    volumes:
+      - langfuse-clickhouse:/var/lib/clickhouse
+      - langfuse-clickhouse-logs:/var/log/clickhouse-server
+      - ./ops/langfuse/clickhouse-low-memory.xml:/etc/clickhouse-server/config.d/low-memory.xml:ro
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    mem_limit: 1536m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  langfuse-redis:
+    <<: *hardening
+    profiles: ["ops"]
+    image: redis:7.4.2-alpine
+    command: ["redis-server", "--requirepass", "${LANGFUSE_REDIS_PASSWORD:-}", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    mem_limit: 128m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_REDIS_PASSWORD:-}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  langfuse-minio:
+    <<: *hardening
+    profiles: ["ops"]
+    image: cgr.dev/chainguard/minio@sha256:9f0aab4471ebb181be3cfabea21b719303ec583cd9abdb7779f9e53032b844f7
+    entrypoint: sh
+    command: ["-c", "mkdir -p /data/langfuse && minio server --address :9000 --console-address :9001 /data"]
+    environment:
+      MINIO_ROOT_USER: langfuse
+      MINIO_ROOT_PASSWORD: ${LANGFUSE_MINIO_PASSWORD:-}
+    volumes:
+      - langfuse-minio:/data
+    mem_limit: 256m
+    networks: [dk]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  langfuse-worker: &langfuse
+    <<: *hardening
+    profiles: ["ops"]
+    image: langfuse/langfuse-worker:3.227.1
+    depends_on:
+      langfuse-postgres: { condition: service_healthy }
+      langfuse-clickhouse: { condition: service_healthy }
+      langfuse-redis: { condition: service_healthy }
+      langfuse-minio: { condition: service_healthy }
+    environment: &langfuse-env
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_POSTGRES_PASSWORD:-}@langfuse-postgres:5432/langfuse
+      SALT: ${LANGFUSE_SALT:-}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-}
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_MINIO_PASSWORD:-}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_MINIO_PASSWORD:-}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD:-}
+    mem_limit: 512m
+    networks: [dk]
+
+  langfuse-web:
+    <<: *langfuse
+    image: langfuse/langfuse:3.227.1
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-}
+      AUTH_DISABLE_SIGNUP: "true"
+      LANGFUSE_INIT_ORG_ID: dua-kelinci
+      LANGFUSE_INIT_ORG_NAME: Dua Kelinci
+      LANGFUSE_INIT_PROJECT_ID: sales-insight
+      LANGFUSE_INIT_PROJECT_NAME: Sales Insight
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_ADMIN_EMAIL:-admin@duakelinci.local}
+      LANGFUSE_INIT_USER_NAME: Admin
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_ADMIN_PASSWORD:-}
+      # Next.js needs more heap than Node derives from the container limit.
+      NODE_OPTIONS: --max-old-space-size=1024
+    mem_limit: 1280m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://$$(hostname -i):3000/api/public/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
