@@ -71,7 +71,7 @@ Diukur di Mac ini dengan clone baru dan virtualenv baru (Python 3.12):
 
 ## Keamanan
 
-Ringkasan di `docs/security/README.md`: STRIDE, checklist ASVS L1, pip-audit tanpa celah, bandit 0 temuan, gitleaks 0 temuan aktif, Trivy 0 HIGH/CRITICAL yang punya perbaikan, SBOM 66 komponen. CI GitHub Actions sudah ditulis tetapi diset manual (`workflow_dispatch`) agar tidak berjalan di GitHub sebelum disetujui.
+Ringkasan di `docs/security/README.md`: STRIDE, checklist ASVS L1, pip-audit tanpa celah, bandit 0 temuan, gitleaks 0 temuan aktif, Trivy 0 HIGH/CRITICAL yang punya perbaikan, SBOM 66 komponen. CI GitHub Actions berjalan di setiap push ke `main`, setiap pull request, dan build ulang mingguan; ketiga job (test, security, image) hijau sejak 25 November 2026.
 
 ## Batasan yang diketahui
 
@@ -86,7 +86,7 @@ Ringkasan di `docs/security/README.md`: STRIDE, checklist ASVS L1, pip-audit tan
 
 ## Yang perlu diputuskan Bagus
 
-1. Menyalakan CI di GitHub (ganti trigger ke push/pull_request) dan Dependabot PR.
+1. Dependabot PR (CI sudah menyala di push, pull request dan jadwal mingguan sejak 25 November 2026).
 2. Langfuse tetap v3 atau naik ke v4 (perlu cek kompatibilitas SDK).
 3. Apakah menambahkan kunci Anthropic untuk menjalankan `scripts/live_eval.py --live` sekali dan mencatat hasilnya sebelum dikirim ke Dua Kelinci.
 4. Isi README untuk pengirim: cukup jalur dua perintah, atau menyebut stack ops di bagian atas.
