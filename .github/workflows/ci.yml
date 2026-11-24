@@ -83,7 +83,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health
           test "$(docker exec app id -u)" = 10001
       - name: Image scan (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: dua-kelinci-sales:ci
           severity: HIGH,CRITICAL
