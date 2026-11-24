@@ -38,7 +38,7 @@ Kesimpulan: baris ini ditambahkan setelah export reguler, entah input susulan da
 
 ### Hari Minggu
 
-7 dari 8 hari Minggu tidak punya transaksi sama sekali. Senin sampai Sabtu selalu ada transaksi. Jadi hari Minggu memang hari tidak berdagang, dan satu transaksi di Minggu 27 September adalah anomali. Tidak ada libur nasional di September-Oktober 2026.
+7 dari 8 hari Minggu tidak punya transaksi sama sekali. Senin sampai Sabtu selalu ada transaksi. Jadi hari Minggu memang hari tidak berdagang, dan satu transaksi di Minggu 27 September adalah anomali. Analisis tidak memakai daftar libur nasional; daftar di `data/reference/holidays_id.csv` belum diverifikasi dan hanya berisi tanggal di luar periode.
 
 ## Model data
 
