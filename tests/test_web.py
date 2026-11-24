@@ -309,7 +309,7 @@ def test_production_refuses_unsafe_config():
 def test_production_accepts_safe_config(users_file):
     s = from_env({
         "APP_ENV": "production", "AUTH_MODE": "local", "LOCAL_USERS_FILE": str(users_file),
-        "SECRET_KEY": "Zq8v1pR4kT7wY2nB5mC9xL3sD6fH0jG8aE1uI4oP", "ALLOWED_HOSTS": "sales.duakelinci.local",
+        "SECRET_KEY": "Zq8v1pR4kT7wY2nB5mC9xL3sD6fH0jG8aE1uI4oP", "ALLOWED_HOSTS": "sales.duakelinci.local",  # gitleaks:allow (test fixture)
         "FORCE_HTTPS": "true", "TRUSTED_PROXIES": "172.20.0.10", "METRICS_TOKEN": "t" * 32,
     })
     assert s.is_production and s.host == "0.0.0.0"
