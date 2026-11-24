@@ -1,11 +1,12 @@
 name: ci
 
-# Manual only until Bagus approves running CI on GitHub. To enable, replace with:
-#   push: { branches: [main] }
-#   pull_request:
-#   schedule: [{ cron: "0 1 * * 1" }]   # weekly rebuild and rescan for new CVEs
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "0 1 * * 1" # weekly rebuild and rescan for new CVEs
 
 permissions:
   contents: read
