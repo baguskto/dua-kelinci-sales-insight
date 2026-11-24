@@ -24,7 +24,7 @@ oidc = [
     "pyjwt[crypto]>=2.15.1",
 ]
 observability = [
-    "langfuse>=5.2.0",
+    "langfuse>=3,<4",
 ]
 llm = [
     "anthropic>=2.13.0",
