@@ -177,6 +177,7 @@ class WeakOutlet:
     action: str
     notes: list[str] = field(default_factory=list)
     rank: int = 0
+    last_order_date: str = ""
 
 
 def weakest_outlets(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = "all", n: int = 5) -> list[WeakOutlet]:
@@ -222,6 +223,7 @@ def weakest_outlets(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = 
         for t, g in sale_all.groupby("outlet_type")
     }
     bought = sale_all.groupby("outlet_id")["sku"].agg(set).to_dict()
+    last_order = sale_all.groupby("outlet_id")["date"].max().dt.strftime("%Y-%m-%d").to_dict()
 
     out: list[WeakOutlet] = []
     for rank, r in enumerate(df.itertuples(), start=1):
@@ -255,6 +257,7 @@ def weakest_outlets(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = 
                 action=_action(r, mom_pct, typ, peer_top.get(typ, []), bought.get(o, set()), ms),
                 notes=outlet_notes(fact, dim_outlet, o),
                 rank=rank,
+                last_order_date=last_order.get(o, ""),
             )
         )
     return out
@@ -318,3 +321,108 @@ def outlet_detail(fact: pd.DataFrame, dim_outlet: pd.DataFrame, outlet_id: str) 
         "last_date": str(rows["date"].max().date()),
         "notes": outlet_notes(fact, dim_outlet, outlet_id),
     }
+
+
+# ---------------------------------------------------------------------------
+# dashboard helpers
+
+
+def apply_filters(fact: pd.DataFrame, region: str | None = None, brand: str | None = None) -> pd.DataFrame:
+    if region:
+        fact = fact[fact["region"] == region]
+    if brand:
+        fact = fact[fact["brand"] == brand]
+    return fact
+
+
+def kpis(fact: pd.DataFrame, period: str = "all") -> dict:
+    t = totals(fact, period)
+    sale_net = t["net_sales_before_returns_idr"]
+    return {
+        **t,
+        "avg_invoice_idr": int(round(sale_net / t["invoices"])) if t["invoices"] else 0,
+        "discount_pct_of_gross": round(t["discount_idr"] / t["gross_sales_idr"] * 100, 2) if t["gross_sales_idr"] else 0.0,
+    }
+
+
+def weekly(fact: pd.DataFrame, period: str = "all") -> list[dict]:
+    """Net sales, cartons, active outlets, invoices and discount share per week (weeks start on Monday)."""
+    f = filter_period(fact, period)
+    if f.empty:
+        return []
+    f = f.assign(week=(f["date"] - pd.to_timedelta(f["date"].dt.weekday, unit="D")).dt.strftime("%Y-%m-%d"))
+    sale = f[~f["is_return"]]
+    out = []
+    for w, g in f.groupby("week"):
+        s = sale[sale["week"] == w]
+        gross = int(s["gross_sales_idr"].sum())
+        out.append(
+            {
+                "week": w,
+                "net_sales_idr": int(g["net_sales_idr"].sum()),
+                "qty_carton": int(g["qty_carton"].sum()),
+                "active_outlets": int(s["outlet_id"].nunique()),
+                "invoices": int(s["invoice_no"].nunique()),
+                "avg_invoice_idr": int(round(s["net_sales_idr"].sum() / s["invoice_no"].nunique())) if len(s) else 0,
+                "discount_pct": round(int(s["discount_idr"].sum()) / gross * 100, 2) if gross else 0.0,
+            }
+        )
+    return out
+
+
+def heatmap(fact: pd.DataFrame, period: str = "all") -> dict:
+    """Region x brand net sales matrix, rows and columns sorted by their totals."""
+    f = filter_period(fact, period)
+    if f.empty:
+        return {"regions": [], "brands": [], "cells": []}
+    pv = f.pivot_table(index="region", columns="brand", values="net_sales_idr", aggfunc="sum", fill_value=0)
+    regions = pv.sum(axis=1).sort_values(ascending=False).index.tolist()
+    brands = pv.sum(axis=0).sort_values(ascending=False).index.tolist()
+    cells = [{"region": r, "brand": b, "value": int(pv.at[r, b])} for r in regions for b in brands]
+    return {"regions": regions, "brands": brands, "cells": cells}
+
+
+def headlines(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str, region_rows: list[dict], brand_rows: list[dict], weak: list) -> dict:
+    """One plain sentence per section, built only from computed numbers."""
+    ms = months(fact)
+    out: dict[str, str] = {}
+    t = totals(fact, period)
+    plabel = fmt.period_label(period, ms)
+    mm = mom(fact) if period == "all" else None
+    s = f"Penjualan {plabel} {fmt.rupiah_short(t['net_sales_idr'])}"
+    if mm and mm["pct"] is not None:
+        arah = "naik" if mm["change"] >= 0 else "turun"
+        s += f"; {fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))} dari {fmt.month_label(mm['prev_month'], long=True).split()[0]}"
+    out["overall"] = s + "."
+    movers = [r for r in region_rows if r.get("mom_pct") is not None]
+    if len(movers) > 1:
+        up = max(movers, key=lambda r: r["mom_pct"])
+        down = min(movers, key=lambda r: r["mom_pct"])
+        m1 = fmt.month_label(up["prev_month"], long=True).split()[0]
+        parts = []
+        if up["mom_pct"] > 0:
+            parts.append(f"{up['key']} naik {fmt.pct(up['mom_pct'])} dari {m1}, tertinggi di antara region")
+        if down["mom_pct"] < 0:
+            parts.append(f"{down['key']} turun {fmt.pct(abs(down['mom_pct']))}, terdalam")
+        out["region"] = ("; ".join(parts) or f"Semua region bergerak di bawah {fmt.pct(up['mom_pct'])}") + "."
+    elif region_rows:
+        out["region"] = f"{region_rows[0]['key']} {fmt.rupiah_short(region_rows[0]['value'])} pada {plabel}."
+    if brand_rows:
+        top = brand_rows[0]
+        s = f"{top['key']} menyumbang {fmt.pct(top['share_pct'])} penjualan {plabel}"
+        movers = [r for r in brand_rows if r.get("mom_pct") is not None]
+        if movers and period == "all":
+            down = min(movers, key=lambda r: r["mom_pct"])
+            if down["mom_pct"] < 0:
+                s += f"; {down['key']} turun {fmt.pct(abs(down['mom_pct']))} dari bulan sebelumnya"
+        out["brand"] = s + "."
+    if weak:
+        worst = max(w.index_pct for w in weak)
+        s = f"{len(weak)} outlet ini di bawah {fmt.pct(worst if worst >= 10 else 10, 0)} median outlet sejenis"
+        flagged = [w for w in weak if any("di luar urutan" in n for n in w.notes)]
+        if flagged and len(flagged) == len(weak):
+            s += "; semuanya dari invoice bernomor di luar urutan, jadi cek input ke admin sebelum kunjungan"
+        elif flagged:
+            s += f"; {len(flagged)} dari invoice bernomor di luar urutan"
+        out["weak"] = s + "."
+    return out
