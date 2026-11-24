@@ -471,3 +471,28 @@ def test_settings_invalid_values():
         from_env({"APP_ENV": "staging"})
     with pytest.raises(ConfigError):
         from_env({"PORT": "abc"})
+
+
+def test_vendored_echarts_hash():
+    import hashlib
+
+    p = config.ROOT / "src/dk_sales/web/static/vendor/echarts-5.6.0.min.js"
+    assert hashlib.sha256(p.read_bytes()).hexdigest() == "bf4a223524e40b77c304bec67e1222cf551f14880cf42c69dc046558e11c07b1"
+
+
+def test_filters_and_print(client):
+    r = client.get("/?region=Jawa%20Barat&brand=Sukro")
+    assert r.status_code == 200 and "Jawa Barat" in r.text and 'class="fchip"' in r.text
+    assert client.get("/?region=Atlantis").status_code == 200
+    p = client.get("/summary/print?period=2026-10")
+    assert p.status_code == 200 and "Oktober 2026" in p.text
+
+
+def test_view_helpers():
+    from dk_sales.web import views
+
+    sp = views.sparkline([1, 3, 2])
+    assert sp["points"].count(",") == 3 and sp["last"][0] > 100
+    assert views.sparkline([])["points"] == ""
+    b = views.bullet(10, 100)
+    assert b["bar"] < b["median"] <= b["width"]
