@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf or '' }}">
+<title>{% block title %}Penjualan Dua Kelinci{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brandmark"><span class="dot" aria-hidden="true"></span><strong>Penjualan Dua Kelinci</strong></div>
+  {% block topbar %}{% endblock %}
+  {% if user %}
+  <div class="who">
+    <span title="{{ user.roles|join(', ') }}">{{ user.display_name }}</span>
+    {% if user.auth_source != 'dev' %}
+    <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="link" type="submit">Keluar</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">{% block footer %}Versi {{ version }}{% endblock %}</footer>
+</body>
+</html>

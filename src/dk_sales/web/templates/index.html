@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% macro bars(rows, chart_id, label) -%}
+{% set maxv = (rows|map(attribute='value')|max) if rows else 1 %}
+{% set maxv = maxv if maxv > 0 else 1 %}
+<svg class="bars" role="img" aria-labelledby="{{ chart_id }}-t" viewBox="0 0 420 {{ rows|length * 26 + 4 }}" preserveAspectRatio="xMinYMin meet">
+  <title id="{{ chart_id }}-t">{{ label }}</title>
+  {% for r in rows %}
+  {% set y = loop.index0 * 26 %}
+  {% set w = [((r.value if r.value > 0 else 0) / maxv * 210), 1]|max %}
+  <text x="0" y="{{ y + 17 }}" class="bar-label">{{ r.key }}</text>
+  <rect x="128" y="{{ y + 5 }}" width="{{ '%.1f'|format(w) }}" height="16" rx="2" class="bar"></rect>
+  <text x="{{ '%.1f'|format(128 + w + 6) }}" y="{{ y + 17 }}" class="bar-value">{{ fmt.rupiah_short(r.value) }}</text>
+  {% endfor %}
+</svg>
+{%- endmacro %}
+{% macro table(rows, dim_label, kind) -%}
+<div class="scroll"><table class="tbl compact">
+  <thead><tr><th scope="col">{{ dim_label }}</th><th scope="col" class="num">Net</th><th scope="col" class="num">Porsi</th>
+  {% if rows and rows[0].prev_month %}<th scope="col" class="num">{{ fmt.month_label(rows[0].curr_month).split()[0] }} vs {{ fmt.month_label(rows[0].prev_month).split()[0] }}</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr><th scope="row">{{ r.key }}</th><td class="num" title="{{ fmt.rupiah(r.value) }}">{{ fmt.rupiah_short(r.value) }}</td><td class="num">{{ fmt.pct(r.share_pct) }}</td>
+  {% if r.prev_month %}<td title="{{ fmt.rupiah_short(r.prev) }} -> {{ fmt.rupiah_short(r.curr) }}" class="num {{ 'up' if (r.mom_pct or 0) > 0 else 'down' if (r.mom_pct or 0) < 0 else '' }}">{{ fmt.pct(r.mom_pct, 1, true) }}</td>{% endif %}</tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="small"><a href="/export/{{ kind }}.csv?period={{ period }}">Unduh CSV</a></p>
+{%- endmacro %}
+
+{% block topbar %}
+{% if ds %}
+<nav class="periods" aria-label="Periode">
+  <a href="/?period=all" {% if period == 'all' %}aria-current="page"{% endif %}>Sep + Okt</a>
+  {% for m in months %}<a href="/?period={{ m }}" {% if period == m %}aria-current="page"{% endif %}>{{ fmt.month_label(m, true) }}</a>{% endfor %}
+</nav>
+<span class="scope" title="Data yang boleh Anda lihat">{{ scope.label }}</span>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if flash %}<p class="alert ok" role="status">{{ flash }}</p>{% endif %}
+{% if upload_error %}
+<div class="alert error" role="alert"><strong>File ditolak.</strong> {{ upload_error }}
+  {% if upload_error_details.found %}<br><span class="small">Kolom yang ditemukan: {{ upload_error_details.found|join(', ') }}</span>{% endif %}
+  <br><span class="small">Data yang sedang tampil tidak berubah.</span></div>
+{% endif %}
+
+{% if not ds %}
+<section class="card state">
+  <h1>Belum ada data</h1>
+  <p>{{ load_error or 'File penjualan belum dimuat.' }}</p>
+  {% if user.can_upload() %}{% include "_upload.html" %}{% else %}<p>Minta admin mengunggah file penjualan.</p>{% endif %}
+</section>
+{% elif empty %}
+<section class="card state">
+  <h1>Tidak ada data dalam akses Anda</h1>
+  <p>Akun Anda ({{ scope.label }}) tidak punya baris penjualan di file ini. Hubungi admin bila ini keliru.</p>
+</section>
+{% else %}
+
+<section class="kpis" aria-label="Ringkasan angka">
+  <div class="kpi"><span class="k">Net setelah retur, {{ period_label }}</span><span class="v">{{ fmt.rupiah_short(totals.net_sales_idr) }}</span><span class="s">{{ fmt.rupiah(totals.net_sales_idr) }}</span></div>
+  {% if mom and period == 'all' %}
+  <div class="kpi"><span class="k">{{ fmt.month_label(mom.curr_month).split()[0] }} vs {{ fmt.month_label(mom.prev_month).split()[0] }}</span><span class="v {{ 'up' if mom.change >= 0 else 'down' }}">{{ fmt.pct(mom.pct, 1, true) }}</span><span class="s">{{ fmt.rupiah_short(mom.prev) }} &rarr; {{ fmt.rupiah_short(mom.curr) }}</span></div>
+  {% endif %}
+  <div class="kpi"><span class="k">Invoice penjualan</span><span class="v">{{ totals.invoices }}</span><span class="s">{{ totals.active_outlets }} outlet aktif</span></div>
+  <div class="kpi"><span class="k">Retur</span><span class="v">{{ fmt.rupiah_short(totals.returns_idr) }}</span><span class="s">{{ totals.return_lines }} baris, sudah dikurangkan</span></div>
+  <div class="kpi"><span class="k">Kualitas data</span><span class="v">{{ ds.result.meta.rows_clean }}</span><span class="s">baris bersih, {{ ds.result.meta.rows_quarantined }} dikarantina. <a href="#kualitas">Rincian</a></span></div>
+</section>
+
+<div class="grid3">
+  <section class="card" aria-labelledby="h-region">
+    <h2 id="h-region">Penjualan per region</h2>
+    <p class="hint">Net setelah retur, {{ period_label }}.</p>
+    {{ bars(region, 'chart-region', 'Penjualan neto per region') }}
+    {{ table(region, 'Region', 'region') }}
+  </section>
+  <section class="card" aria-labelledby="h-brand">
+    <h2 id="h-brand">Penjualan per brand</h2>
+    <p class="hint">Net setelah retur, {{ period_label }}.</p>
+    {{ bars(brand, 'chart-brand', 'Penjualan neto per brand') }}
+    {{ table(brand, 'Brand', 'brand') }}
+  </section>
+  <section class="card" aria-labelledby="h-weak">
+    <h2 id="h-weak">5 outlet terlemah</h2>
+    <p class="hint">Dibanding median outlet bertipe sama ({{ period_label }}), jadi Warung tidak dibandingkan dengan Grosir. Hanya outlet di bawah median yang tampil. <a href="#definisi">Cara hitung</a></p>
+    {% if not weak %}<p class="state">Tidak ada outlet di bawah median outlet sejenis dalam akses Anda.</p>{% endif %}
+    <ol class="weak">
+    {% for w in weak %}
+      <li>
+        <div class="wtitle"><a href="/outlet/{{ w.outlet_id }}">{{ w.outlet_name }}</a> <span class="muted">{{ w.outlet_id }} &middot; {{ w.outlet_type }} &middot; {{ w.branch }}</span></div>
+        <div class="why">{{ w.reason }}</div>
+        <div class="act"><strong>Saran:</strong> {{ w.action }}</div>
+        {% for n in w.notes %}<div class="note">{{ n }}</div>{% endfor %}
+      </li>
+    {% endfor %}
+    </ol>
+    <p class="small"><a href="/export/weakest.csv?period={{ period }}">Unduh CSV (20 terlemah)</a></p>
+  </section>
+</div>
+
+<div class="grid2">
+  <section class="card" aria-labelledby="h-tg">
+    <h2 id="h-tg">Ringkasan untuk Telegram</h2>
+    <p class="hint">Dibuat dari angka di halaman ini, tanpa internet. {{ summary.text|length }} karakter.{% if summary.source == 'llm' %} Bahasa dirapikan AI, semua angka sudah dicek.{% endif %}</p>
+    <textarea id="tg-text" class="summary" readonly rows="9">{{ summary.text }}</textarea>
+    <div class="row">
+      <button type="button" id="copy-btn" data-target="tg-text">Salin</button>
+      {% if user.can_send_telegram() %}<button type="button" class="secondary" id="tg-send" data-period="{{ period }}">{{ 'Kirim ke Telegram' if telegram_enabled else 'Kirim ke Telegram (mode uji)' }}</button>{% endif %}
+      <span id="tg-status" class="small" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="h-chat">
+    <h2 id="h-chat">Tanya data</h2>
+    <p class="hint">Jawaban hanya dari angka di file ini. {{ 'Mode AI (Claude) dengan cek angka.' if chat_mode == 'llm' else 'Mode offline: aturan dan template, tanpa kunci API.' }}</p>
+    <form id="chat-form" class="row" autocomplete="off">
+      <label class="sr-only" for="chat-q">Pertanyaan</label>
+      <input id="chat-q" name="question" maxlength="{{ settings.chat_max_question_chars }}" placeholder="Contoh: brand mana yang turun paling dalam?" required>
+      <button type="submit">Tanya</button>
+    </form>
+    <div class="chips">
+      {% for q in ['Penjualan per region bulan Oktober', '5 outlet terlemah', 'Region mana yang turun paling dalam?', 'Berapa penjualan Sukro di Jawa Timur?', 'Kualitas data'] %}
+      <button type="button" class="chip" data-q="{{ q }}">{{ q }}</button>
+      {% endfor %}
+    </div>
+    <div id="chat-log" class="chat-log" aria-live="polite"></div>
+  </section>
+</div>
+
+<section class="card" id="kualitas" aria-labelledby="h-dq">
+  <h2 id="h-dq">Kualitas data</h2>
+  <p class="hint">File {{ ds.source.filename }} ({{ ds.source.encoding }}{% if ds.source.delimiter %}, pemisah "{{ ds.source.delimiter }}"{% endif %}), sha256 {{ ds.source.sha256[:12] }}. {{ ds.result.meta.rows_in }} baris masuk, {{ ds.result.meta.rows_clean }} bersih, {{ ds.result.meta.rows_quarantined }} dikarantina. Tidak ada baris yang dibuang tanpa catatan.</p>
+  <div class="grid2 tight">
+    <div>
+      <h3>Yang dibersihkan dan ditandai</h3>
+      <table class="tbl compact">
+        <thead><tr><th scope="col">Aturan</th><th scope="col" class="num">Baris</th><th scope="col">Tindakan</th></tr></thead>
+        <tbody>
+        {% for r in dq_rows %}
+        <tr><th scope="row"><span class="mono">{{ r.rule_id }}</span> {{ r.title }}</th><td class="num">{{ rule_stats[r.rule_id].rows or rule_stats[r.rule_id].entities }}</td><td>{{ ACTION_ID[r.action] }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Duplikat dikarantina</h3>
+      {% if quarantine %}
+      <ul class="plain">{% for q in quarantine %}<li><span class="mono">{{ q.rule_id }}</span> baris {{ q.raw_row_id }}: {{ q.invoice_no }}, {{ q.sku }}, {{ fmt.rupiah(q.net_sales_idr|int) }}. {{ q.reason }}</li>{% endfor %}</ul>
+      {% if user.is_admin %}<p class="small"><a href="/export/quarantine.csv">Unduh karantina (CSV)</a></p>{% endif %}
+      {% else %}<p>Tidak ada.</p>{% endif %}
+      <h3>Retur</h3>
+      {% if returns %}<ul class="plain">{% for r in returns %}<li>{{ r.invoice_no }} {{ r.date.strftime('%Y-%m-%d') }}, <a href="/outlet/{{ r.outlet_id }}">{{ r.outlet_name }} ({{ r.outlet_id }})</a>: {{ r.qty_carton }} karton {{ r.sku }}, {{ fmt.rupiah(r.net_sales_idr) }}.{% if r.dq_return_unmatched %} Melebihi pembelian outlet ini di periode data: konfirmasi ke tim.{% endif %}</li>{% endfor %}</ul>{% else %}<p>Tidak ada retur dalam akses Anda.</p>{% endif %}
+      <h3>Salesman yang diisi</h3>
+      {% if inferred %}<ul class="plain">{% for e in inferred %}<li>Baris {{ e.raw_row_id }}: {{ e.after or '(tetap kosong)' }}. {{ e.reason }}</li>{% endfor %}</ul>{% else %}<p>Tidak ada.</p>{% endif %}
+      <h3>Kemungkinan data master ganda</h3>
+      {% if shared_master %}<ul class="plain">{% for o in shared_master %}<li>{{ o.outlet_name }} {{ o.outlet_id }} ({{ o.branch }}): nama sama dengan outlet lain di cabang yang sama, cek ke admin. Tetap dihitung sebagai outlet terpisah.</li>{% endfor %}</ul>{% else %}<p>Tidak ada.</p>{% endif %}
+    </div>
+  </div>
+  <details id="definisi">
+    <summary>Cara menghitung outlet terlemah dan angka lain</summary>
+    <ul>
+      <li>Penjualan = <em>net_sales_idr</em> (gross dikurangi diskon), retur ikut dikurangkan.</li>
+      <li>Outlet terlemah: net outlet dibagi median net outlet bertipe sama (Grosir, Minimarket, Toko Kelontong, Warung) pada periode yang dipilih. Indeks terendah paling lemah. Hanya outlet di bawah median yang masuk daftar. Tren bulan, jumlah order dan variasi SKU dipakai untuk alasan dan saran, tidak mengubah urutan.</li>
+      <li>Outlet yang hanya muncul di invoice bernomor di luar urutan tetap dihitung. Catatan di samping namanya adalah konteks untuk dicek ke admin, bukan alasan untuk disembunyikan.</li>
+      <li>Outlet dengan nama sama di cabang yang sama tetap dihitung terpisah sesuai id master dan ditandai kemungkinan data ganda.</li>
+      <li>Perubahan bulan = bulan terakhir dibanding bulan sebelumnya pada data.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Semua 27 aturan</summary>
+    <table class="tbl compact">
+      <thead><tr><th scope="col">Id</th><th scope="col">Aturan</th><th scope="col">Tingkat</th><th scope="col" class="num">Baris</th><th scope="col">Tindakan</th></tr></thead>
+      <tbody>{% for r in rules %}<tr><td class="mono">{{ r.rule_id }}</td><td>{{ r.title }}</td><td>{{ SEVERITY_ID[r.severity] }}</td><td class="num">{{ rule_stats[r.rule_id].rows }}</td><td>{{ ACTION_ID[r.action] }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </details>
+  {% if user.can_upload() %}
+  <div class="upload-box">
+    <h3>Unggah data lain</h3>
+    {% include "_upload.html" %}
+    {% if ds.source.origin == 'upload' %}
+    <form method="post" action="/dataset/reset" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button type="submit" class="link">Kembali ke sales.csv</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

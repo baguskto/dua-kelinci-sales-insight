@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ d.outlet_name }} ({{ d.outlet_id }}) - Penjualan Dua Kelinci{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <p><a href="/">&larr; Dashboard</a></p>
+  <h1>{{ d.outlet_name }} <span class="muted">{{ d.outlet_id }}</span></h1>
+  <p class="muted">{{ d.outlet_type }}, cabang {{ d.branch }}, {{ d.region }}. Salesman: {{ d.salesmen|join(', ') or '-' }}. Transaksi {{ d.first_date }} s.d. {{ d.last_date }}.</p>
+  {% for n in d.notes %}<p class="note">{{ n }}</p>{% endfor %}
+  <table class="tbl">
+    <tr><th scope="row">Net setelah retur</th><td class="num">{{ fmt.rupiah(d.net_sales_idr) }}</td></tr>
+    {% for m, v in d.by_month.items() %}<tr><th scope="row">{{ fmt.month_label(m, true) }}</th><td class="num">{{ fmt.rupiah(v) }}</td></tr>{% endfor %}
+    <tr><th scope="row">Perubahan bulan terakhir</th><td class="num">{{ fmt.pct(d.mom_pct, 1, true) }}</td></tr>
+    <tr><th scope="row">Invoice penjualan</th><td class="num">{{ d.invoices }}</td></tr>
+    <tr><th scope="row">Karton (setelah retur)</th><td class="num">{{ d.qty_carton }}</td></tr>
+    <tr><th scope="row">Retur</th><td class="num">{{ fmt.rupiah(d.returns_idr) }}</td></tr>
+  </table>
+  <h2>SKU terbesar</h2>
+  <ul>{% for s in d.top_skus %}<li>{{ s.sku }}: {{ fmt.rupiah(s.net_sales_idr) }}</li>{% endfor %}</ul>
+</section>
+{% endblock %}
