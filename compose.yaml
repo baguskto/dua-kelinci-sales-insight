@@ -253,7 +253,7 @@ services:
   langfuse-redis:
     <<: *hardening
     profiles: ["ops"]
-    image: redis:7.4.2-alpine
+    image: redis:8.0.0-alpine
     command: ["redis-server", "--requirepass", "${LANGFUSE_REDIS_PASSWORD:-}", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
     mem_limit: 128m
     networks: [dk]
