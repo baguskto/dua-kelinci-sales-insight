@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import io
 import json
-import secrets
 import re
+import secrets
 import zipfile
 
 import pandas as pd
@@ -524,3 +524,11 @@ def test_view_helpers():
     assert views.sparkline([])["points"] == ""
     b = views.bullet(10, 100)
     assert b["bar"] < b["median"] <= b["width"]
+
+
+def test_upload_json_mode_for_progress_bar(client):
+    tok = csrf(client)
+    ok = client.post("/upload", files={"file": ("sales.csv", RAW)}, data={"csrf_token": tok}, headers={"Accept": "application/json"})
+    assert ok.status_code == 200 and ok.json()["ok"] is True and "diterima" in ok.json()["message"]
+    bad = client.post("/upload", files={"file": ("x.csv", b"a,b\n1,2\n")}, data={"csrf_token": tok}, headers={"Accept": "application/json"})
+    assert bad.status_code == 400 and bad.json()["ok"] is False and "Kolom wajib" in bad.json()["message"]

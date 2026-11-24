@@ -560,7 +560,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             f"{ds.result.meta['rows_quarantined']} dikarantina. Lihat Kualitas data."
         )
         if wants_json(request):
-            return {"ok": True, "message": flash}
+            return JSONResponse({"ok": True, "message": flash})
         ctx = dashboard_context(request, user, "all")
         ctx["flash"] = (
             f"File {name} diterima: {ds.result.meta['rows_in']} baris, {ds.result.meta['rows_clean']} bersih, "
@@ -748,10 +748,8 @@ def main() -> None:
 
     settings = from_env()
     app = create_app(settings)
-    print(
-        f"Dua Kelinci Sales Insight berjalan di http://{'127.0.0.1' if settings.host in ('0.0.0.0', '127.0.0.1') else settings.host}:{settings.port}",
-        flush=True,
-    )  # noqa: S104
+    shown_host = "127.0.0.1" if settings.host in ("0.0.0.0", "127.0.0.1") else settings.host  # noqa: S104
+    print(f"Dua Kelinci Sales Insight berjalan di http://{shown_host}:{settings.port}", flush=True)
     uvicorn.run(
         app,
         host=settings.host,
