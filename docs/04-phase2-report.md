@@ -1,6 +1,6 @@
 # 04 Laporan fase 2: aplikasi, chat, lapisan produksi
 
-Tanggal: 25 November 2026. Repo: https://github.com/baguskto/dua-kelinci-sales-insight (branch `main`).
+Tanggal: 25 November 2026. Tampilan dashboard sudah didesain ulang sesudah laporan ini, lihat [docs/10-redesign-report.md](10-redesign-report.md); screenshot dashboard di bawah sudah memakai tampilan baru, kecuali `prod-head-of-region-jabar.png` (stack production lewat Caddy, masih tampilan lama). Repo: https://github.com/baguskto/dua-kelinci-sales-insight (branch `main`).
 
 ## Yang dibangun
 

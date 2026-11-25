@@ -31,10 +31,11 @@ sales.csv / unggahan .csv .xlsx
 | `dk_sales/clean.py`, `rules.py` | Aturan kualitas data, DQ log, karantina. |
 | `dk_sales/model.py`, `contract.py` | Model bintang dan kontrak data. |
 | `dk_sales/pipeline.py`, `profile.py`, `reconcile.py`, `docs.py` | Build fase 1 (`make data`): profiling, dokumen, rekonsiliasi. |
-| `dk_sales/analytics.py` | Total, breakdown, perubahan bulan, heatmap, KPI mingguan, outlet terlemah, kalimat judul. |
+| `dk_sales/analytics.py` | Total, breakdown, perubahan bulan, matriks region x brand, kumulatif per tanggal, KPI mingguan, outlet terlemah, kalimat judul. |
 | `dk_sales/summary.py`, `guard.py`, `fmt.py` | Ringkasan Telegram, cek angka, format angka Indonesia. |
 | `dk_sales/chat/` | Tool baca-saja, parser intent offline, engine (offline dan LLM), set evaluasi. |
-| `dk_sales/web/` | FastAPI: pengaturan, autentikasi dan RBAC, keamanan HTTP, telemetri, penyimpanan dataset, rute, template, aset statis. |
+| `dk_sales/web/` | FastAPI: pengaturan, autentikasi dan RBAC, keamanan HTTP, telemetri, penyimpanan dataset, rute, template, aset statis (ECharts, huruf Plus Jakarta Sans, logo; semua lokal). |
+| `dk_sales/web/views.py` | Geometri SVG, sapaan per peran, teks tugas kunjungan, file kalender .ics, data grafik. |
 
 ## Keputusan desain
 
@@ -50,9 +51,10 @@ sales.csv / unggahan .csv .xlsx
 |---|---|---|
 | GET `/` | semua peran | Dashboard; parameter `period`, `region`, `brand` |
 | GET `/outlet/{id}` | semua peran, dalam scope | Detail outlet |
+| GET `/outlet/{id}/kunjungan.ics` | semua peran, dalam scope | Acara kalender kunjungan untuk outlet yang perlu dikunjungi (filter dan periode sama dengan dashboard) |
 | GET `/api/overview`, `/api/sales`, `/api/summary` | semua peran | JSON untuk integrasi |
 | POST `/api/chat` | semua peran, CSRF | Tanya data |
-| POST `/api/telegram/send` | semua peran, CSRF, audit | Kirim ringkasan (uji kirim bila belum diatur) |
+| POST `/api/telegram/send` | semua peran, CSRF, audit | Kirim ringkasan (uji kirim bila belum diatur; tombol Kirim di UI hanya muncul bila Telegram diatur) |
 | GET `/summary/print` | semua peran | Ringkasan untuk dicetak |
 | GET `/export/{region,brand,weakest}.csv` | semua peran | CSV aman formula |
 | GET `/export/quarantine.csv` | admin | Baris karantina |

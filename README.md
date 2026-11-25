@@ -2,9 +2,11 @@
 
 [![ci](https://github.com/baguskto/dua-kelinci-sales-insight/actions/workflows/ci.yml/badge.svg)](https://github.com/baguskto/dua-kelinci-sales-insight/actions/workflows/ci.yml)
 
-Aplikasi web kecil untuk sales manager: penjualan per region dan brand, 5 outlet terlemah dibanding outlet sejenis, dan satu paragraf ringkasan yang siap dikirim ke Telegram. Data mentah dibersihkan dengan 27 aturan kualitas data yang bisa diperiksa, dan ada kolom "Tanya data" yang menjawab hanya dari angka di file.
+Aplikasi web kecil untuk sales manager: penjualan per region dan brand, 5 outlet perlu dikunjungi (terlemah dibanding outlet sejenis), dan satu paragraf ringkasan yang siap dikirim ke Telegram. Data mentah dibersihkan dengan 27 aturan kualitas data yang bisa diperiksa, dan ada kolom "Tanya data" yang menjawab hanya dari angka di file.
 
-![Dashboard](docs/img/dashboard-desktop.png)
+![Dashboard desktop](docs/img/dashboard-desktop.png)
+
+<img src="docs/img/dashboard-mobile.png" alt="Dashboard di ponsel" width="260"> <img src="docs/img/dashboard-mobile-outlet.png" alt="Kartu outlet di ponsel" width="260"> <img src="docs/img/dashboard-mobile-telegram.png" alt="Pratinjau bot Telegram di ponsel" width="260">
 
 ## Menjalankan (Python 3.11 atau lebih baru, macOS atau Windows)
 
@@ -24,6 +26,8 @@ Start pertama sekitar 12 detik karena Python mengompilasi library sekali; start 
 - Angka utama adalah penjualan neto setelah retur. 3 baris duplikat persis dikeluarkan ke karantina, 1 retur dikurangkan, region dan nama outlet dibakukan. Total mentah ke bersih selisih 0 rupiah.
 - Outlet terlemah = penjualan outlet dibagi median outlet bertipe sama, jadi Warung dibandingkan dengan Warung. Lima outlet terlemah (OUT1003, OUT1026, OUT1045, OUT1042, OUT1035) hanya muncul di blok invoice bernomor di luar urutan. Mereka tetap dihitung dan diberi catatan "Cek data". OUT1001 dan OUT1003 bernama sama di cabang yang sama; keduanya tetap dihitung terpisah dengan catatan kemungkinan data master ganda.
 - Ringkasan Telegram dibangun dari angka yang sudah dihitung, jadi jalan offline. Kirim ke Telegram dan perapian bahasa dengan Claude hanya aktif bila diatur lewat `.env` (lihat `.env.example`); setiap angka hasil AI dicek dulu.
+- Setiap kartu outlet punya dua aksi yang jalan tanpa server tambahan: "Jadwalkan kunjungan" mengunduh file kalender (.ics) untuk hari kerja berikutnya, "Salin tugas" menyalin teks tugas untuk salesman.
+- Grafik utama adalah penjualan kumulatif per tanggal, September vs Oktober, dengan satu kalimat yang dihitung dari data (misalnya kapan Oktober menyalip September). Konsep tampilan dan arti warna: [docs/05-ui-concept.md](docs/05-ui-concept.md).
 - "Tanya data" bekerja offline dengan aturan dan template. Bila `ANTHROPIC_API_KEY` diisi, Claude menjawab lewat tool baca-saja, dan jawaban yang angkanya tidak cocok diganti jawaban template.
 
 ## Dokumen
@@ -33,7 +37,7 @@ Start pertama sekitar 12 detik karena Python mengompilasi library sekali; start 
 - [Konsep UI](docs/05-ui-concept.md) dan [arsitektur](docs/07-architecture.md)
 - [Guardrail chat dan ringkasan](docs/08-guardrails.md)
 - [Yang akan saya bangun berikutnya](docs/09-next-steps.md)
-- Laporan: [fase 1](docs/03-phase1-report.md), [fase 2](docs/04-phase2-report.md)
+- Laporan: [fase 1](docs/03-phase1-report.md), [fase 2](docs/04-phase2-report.md), [desain ulang](docs/10-redesign-report.md)
 
 ## Untuk developer
 
@@ -42,8 +46,13 @@ uv sync --all-extras          # dependensi runtime, dev, llm, oidc, observabilit
 uv run pytest                 # unit, integrasi, e2e (Playwright: uv run playwright install chromium)
 make data                     # bangun ulang data/processed dan dokumen fase 1 dari data/raw
 uv run python scripts/live_eval.py   # set golden dan red-team chat (offline)
+uv run python scripts/ui_screenshots.py   # perbarui screenshot di docs/img
 ```
 
 ## Production
 
 Mode production (login Microsoft Entra ID atau akun lokal, TLS, metrik, log, alert, tracing) dijelaskan di [docs/ops](docs/ops/README.md) dan [docs/security](docs/security/README.md). Laporkan masalah keamanan sesuai [SECURITY.md](SECURITY.md).
+
+## Merek dan huruf
+
+Logo dan nama Dua Kelinci milik PT Dua Kelinci, dipakai hanya untuk keperluan tes rekrutmen. Huruf Plus Jakarta Sans disimpan lokal di `src/dk_sales/web/static/fonts/` dengan lisensi SIL Open Font License (`OFL.txt`); aplikasi tidak memuat apa pun dari CDN.
