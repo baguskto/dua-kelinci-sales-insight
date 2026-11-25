@@ -125,3 +125,41 @@ def test_guard_parse_numbers():
     assert guard.parse_number("3.6") == (3.6, 1)
     assert guard.parse_number("1,234,567") == (1234567.0, 0)
     assert guard.parse_number("-13,9") == (-13.9, 1)
+
+
+def test_cumulative_runs_by_day_and_ends_at_month_totals(ds):
+    s = an.cumulative(ds.fact)
+    assert [c["month"] for c in s] == ["2026-09", "2026-10"]
+    sep, okt = s
+    assert (len(sep["values"]), len(okt["values"])) == (30, 31)
+    assert (sep["values"][-1], okt["values"][-1]) == (847_517_400, 878_448_600)
+    assert sum(okt["daily"]) == okt["total"] == okt["values"][-1]
+    # A day without sales carries the previous total (4 Oktober is a Sunday without orders).
+    assert okt["daily"][3] == 0 and okt["values"][3] == okt["values"][2]
+
+
+def test_cumulative_keeps_calendar_length_when_a_filter_has_no_sales_at_month_end(ds):
+    roni = an.cumulative(ds.fact[ds.fact["brand"] == "Roni"], ds.fact["date"].max())
+    assert len(roni[0]["values"]) == 30  # September has 30 days even if Roni has no sale on the 29th and 30th
+
+
+def test_cumulative_insight_sentences(ds):
+    assert an.cumulative_insight(an.cumulative(ds.fact)) == (
+        "Sampai tanggal 30 Oktober masih Rp6,9 juta di bawah September; tanggal 31, yang tidak ada di September, "
+        "membuat Oktober menutup bulan Rp30,9 juta di atas September."
+    )
+    end = ds.fact["date"].max()
+    jatim = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jawa Timur"], end))
+    assert jatim.startswith("Oktober selalu di atas September sejak tanggal 1")
+    jabar = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jawa Barat"], end))
+    assert jabar == "Oktober tertinggal dari September sepanjang bulan dan menutup bulan Rp23,2 juta di bawah September."
+    jabo = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jabodetabek"], end))
+    assert jabo.startswith("Oktober menyalip September pada tanggal 13")
+    assert an.cumulative_insight([]) == ""
+
+
+def test_short_headline(ds):
+    weak = an.weakest_outlets(ds.fact, ds.dim_outlet, "all", 5)
+    assert an.short_headline(ds.fact, weak) == "Oktober naik 3,6% · 5 outlet perlu dikunjungi"
+    jabar = ds.fact[ds.fact["region"] == "Jawa Barat"]
+    assert an.short_headline(jabar, []).startswith("Oktober turun 13,9%")

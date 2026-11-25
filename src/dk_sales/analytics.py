@@ -421,3 +421,75 @@ def headlines(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str, region_
             s += f"; {len(flagged)} dari invoice bernomor di luar urutan"
         out["weak"] = s + "."
     return out
+
+
+def cumulative(fact: pd.DataFrame, last_date: pd.Timestamp | None = None) -> list[dict]:
+    """Running net sales by day of month, one series per month in the data.
+
+    Days without a sale carry the previous total, so the line never dips. Earlier months run to their
+    last calendar day; the month of ``last_date`` (default: the last date in ``fact``) stops there,
+    so a filter that has no sales at the end of a month does not shorten the line.
+    """
+    if fact.empty:
+        return []
+    last_date = last_date if last_date is not None else fact["date"].max()
+    daily = fact.groupby(["year_month", fact["date"].dt.day])["net_sales_idr"].sum()
+    out = []
+    for m in months(fact):
+        start = pd.Timestamp(f"{m}-01")
+        n = last_date.day if (last_date.year, last_date.month) == (start.year, start.month) else start.days_in_month
+        days = daily.loc[m]
+        per_day = [int(days.get(d, 0)) for d in range(1, n + 1)]
+        running, total = [], 0
+        for v in per_day:
+            total += v
+            running.append(total)
+        out.append({"month": m, "values": running, "total": int(days.sum()), "daily": per_day})
+    return out
+
+
+def cumulative_insight(series: list[dict]) -> str:
+    """One sentence on how the last month's running total compares with the month before it."""
+    if len(series) < 2:
+        if series:
+            s = series[-1]
+            return f"{fmt.month_label(s['month'], long=True).split()[0]} {fmt.rupiah_short(s['total'])} sampai tanggal {len(s['values'])}."
+        return ""
+    prev, curr = series[-2], series[-1]
+    p_name = fmt.month_label(prev["month"], long=True).split()[0]
+    c_name = fmt.month_label(curr["month"], long=True).split()[0]
+    n = len(curr["values"])
+    # Compare day by day; once the previous month has ended its total stays flat.
+    pv = [prev["values"][min(i, len(prev["values"]) - 1)] for i in range(n)]
+    ahead = [c >= p for c, p in zip(curr["values"], pv, strict=True)]
+    gap = curr["total"] - prev["total"]
+    end = f"menutup bulan {fmt.rupiah_short(abs(gap))} {'di atas' if gap >= 0 else 'di bawah'} {p_name}"
+    if all(ahead):
+        return f"{c_name} selalu di atas {p_name} sejak tanggal 1 dan {end}."
+    if not ahead[-1]:
+        since = n - next(i for i, a in enumerate(reversed(ahead)) if a) if any(ahead) else 0
+        start = f"sejak tanggal {since + 1}" if any(ahead) else "sepanjang bulan"
+        return f"{c_name} tertinggal dari {p_name} {start} dan {end}."
+    overtake = n - next(i for i, a in enumerate(reversed(ahead)) if not a) + 1
+    last_common = len(prev["values"])
+    if overtake > last_common:
+        behind = prev["values"][-1] - curr["values"][last_common - 1]
+        return (
+            f"Sampai tanggal {last_common} {c_name} masih {fmt.rupiah_short(behind)} di bawah {p_name}; "
+            f"tanggal {overtake}, yang tidak ada di {p_name}, membuat {c_name} {end}."
+        )
+    return f"{c_name} menyalip {p_name} pada tanggal {overtake} dan bertahan di atas sampai akhir data; {c_name} {end}."
+
+
+def short_headline(fact: pd.DataFrame, weak: list) -> str:
+    """Header line: last month vs the month before, and how many outlets need a visit."""
+    parts = []
+    mm = mom(fact)
+    if mm and mm["pct"] is not None:
+        arah = "naik" if mm["change"] >= 0 else "turun"
+        parts.append(f"{fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))}")
+    else:
+        parts.append(f"Penjualan {fmt.rupiah_short(int(fact['net_sales_idr'].sum()))}")
+    if weak:
+        parts.append(f"{len(weak)} outlet perlu dikunjungi")
+    return " · ".join(parts)

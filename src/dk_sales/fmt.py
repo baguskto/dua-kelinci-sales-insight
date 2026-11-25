@@ -40,6 +40,13 @@ def rupiah_short(n: float | int) -> str:
     return f"{sign}Rp{int(a)}"
 
 
+def rupiah_short_parts(n: float | int) -> tuple[str, str]:
+    """rupiah_short split into number and unit, so a KPI can set the unit smaller: ("Rp1,73", "miliar")."""
+    s = rupiah_short(n)
+    num, _, unit = s.partition(" ")
+    return num, unit
+
+
 def _dec(v: float, digits: int) -> str:
     s = f"{v:.{digits}f}"
     if digits:
