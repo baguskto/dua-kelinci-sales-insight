@@ -166,6 +166,13 @@ def test_kpi_numbers_never_overlap(server, browser, width):
         if (v.scrollWidth > v.clientWidth + 1) out.push(`card ${i}: number overflows`);
         cards.forEach((o, j) => { if (j > i && overlap(box, o.getBoundingClientRect())) out.push(`cards ${i} and ${j} overlap`); });
       });
+      document.querySelectorAll('.w-actions > *').forEach((el, i) => {
+        const box = el.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const t = range.getClientRects()[0];
+        if (!t || t.left < box.left - 0.5 || t.right > box.right + 0.5) out.push(`outlet action ${i} ('${el.textContent.trim()}'): text clipped by its button`);
+      });
       return out;
     }"""
     )
