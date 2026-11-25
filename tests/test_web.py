@@ -19,7 +19,8 @@ from dk_sales.web.security import csv_safe
 from dk_sales.web.settings import ConfigError, Settings, from_env
 
 RAW = (config.ROOT / "sales.csv").read_bytes()
-PASSWORD = "Kelinci-Uji-2026!"
+# Generated per test run, so the repo holds no password-like constant.
+PASSWORD = secrets.token_urlsafe(16)
 
 
 def make(tmp_path, **kw) -> TestClient:
