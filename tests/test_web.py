@@ -554,3 +554,126 @@ def test_summary_llm_polish_is_number_checked(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path / "b", **base), llm_client=Polisher(bad))) as c:
         s = c.get("/api/summary").json()
         assert s["source"] == "template" and s["fallback_reason"] == "guardrail" and "Rp1,73 miliar" in s["text"]
+
+
+# -- redesign: greeting, visit actions, brand assets ------------------------------------
+
+
+def _weak():
+    from dk_sales import analytics as an
+    from dk_sales.web.dataset import load_bytes
+
+    ds = load_bytes("sales.csv", RAW, 10**8, 10**7)
+    return an.weakest_outlets(ds.fact, ds.dim_outlet, "all", 5)
+
+
+def test_greeting_uses_role_or_neutral_title():
+    from datetime import datetime
+
+    from dk_sales.web import views
+
+    hos = auth.User("hos", "Bu Rina", ["head_of_sales"])
+    at = lambda h: datetime(2026, 11, 25, h, 0, tzinfo=views.WIB)  # noqa: E731
+    assert views.greeting(hos, at(7)) == "Selamat pagi, Head of Sales"
+    assert views.greeting(hos, at(13)) == "Selamat siang, Head of Sales"
+    assert views.greeting(hos, at(16)) == "Selamat sore, Head of Sales"
+    assert views.greeting(hos, at(20)) == "Selamat malam, Head of Sales"
+    both = auth.User("x", "X", ["admin", "head_of_region"], regions=["Jawa Barat"])
+    assert views.greeting(both, at(7)) == "Selamat pagi, Head of Region"
+    assert views.greeting(auth.DEV_USER, at(7)) == "Penjualan Dua Kelinci"
+
+
+def test_visit_task_text_is_short_and_complete():
+    from dk_sales.web import views
+
+    w = _weak()[0]
+    t = views.visit_task(w, "Sep-Okt 2026")
+    assert t.splitlines()[0] == "Tugas kunjungan: Toko Sinar Abadi (OUT1003), Toko Kelontong, Jakarta Barat, Jabodetabek."
+    assert "Sep-Okt 2026: net Rp564 ribu, 4% dari median Toko Kelontong (Rp14,8 juta); 3 order." in t
+    assert "Saran: Order jarang" in t and "Cek data: Nomor invoice di luar urutan" in t
+    assert len(t) < 700
+    assert views.reason_line(w) == "Alasan: 4% dari median Toko Kelontong, order jarang (3 vs median 14)."
+    assert views.suggestion(w).startswith("Jadwalkan kunjungan rutin")
+    assert [views.note_label(n) for n in w.notes] == ["Invoice di luar urutan", "Nama sama dengan OUT1001"]
+
+
+def test_visit_ics_is_valid_and_escaped():
+    from datetime import date, datetime
+
+    from dk_sales.web import views
+
+    w = _weak()[0]
+    w.outlet_name = "Toko; Sinar, Abadi\\Baru\nLantai 2"
+    body = views.visit_ics(w, "Sep-Okt 2026", date(2026, 11, 26), datetime(2026, 11, 25, 9, 12, tzinfo=views.WIB))
+    assert body.startswith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n") and body.endswith("END:VCALENDAR\r\n")
+    assert "\n" not in body.replace("\r\n", "")  # only CRLF line breaks, no raw newline from data
+    lines = body.split("\r\n")
+    assert all(len(line.encode()) <= 75 for line in lines)
+    unfolded = body.replace("\r\n ", "")
+    assert "DTSTART;VALUE=DATE:20261126\r\nDTEND;VALUE=DATE:20261127" in unfolded
+    assert "DTSTAMP:20261125T021200Z" in unfolded
+    assert "UID:kunjungan-OUT1003-20261126@penjualan-dua-kelinci" in unfolded
+    assert "SUMMARY:Kunjungi Toko\\; Sinar\\, Abadi\\\\Baru\\nLantai 2 (OUT1003)" in unfolded
+    assert "LOCATION:Jakarta Barat\\, Jabodetabek" in unfolded
+    assert body.count("BEGIN:VEVENT") == 1
+
+
+def test_next_workday_skips_weekend():
+    from datetime import date
+
+    from dk_sales.web import views
+
+    assert views.next_workday(date(2026, 11, 25)) == date(2026, 11, 26)  # Rabu -> Kamis
+    assert views.next_workday(date(2026, 11, 27)) == date(2026, 11, 30)  # Jumat -> Senin
+
+
+def test_visit_ics_endpoint(client):
+    r = client.get("/outlet/OUT1003/kunjungan.ics?period=all")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/calendar")
+    assert r.headers["content-disposition"] == 'attachment; filename="kunjungan-OUT1003.ics"'
+    assert "SUMMARY:Kunjungi Toko Sinar Abadi (OUT1003)" in r.text
+    assert client.get("/outlet/OUT1010/kunjungan.ics").status_code == 404  # not a weak outlet
+    assert client.get("/outlet/..%2Fetc/kunjungan.ics").status_code == 404
+
+
+def test_visit_ics_respects_scope(tmp_path, users_file):
+    with make(tmp_path, auth_mode="local", local_users_file=users_file) as c:
+        login(c, "jabar")
+        assert c.get("/outlet/OUT1003/kunjungan.ics").status_code == 404  # Jabodetabek outlet
+        html = c.get("/").text
+        assert "Selamat" in html and "Head of Region" in html
+        ids = re.findall(r"/outlet/(OUT\d+)/kunjungan\.ics", html)
+        assert ids and all(c.get(f"/outlet/{o}/kunjungan.ics").status_code == 200 for o in ids)
+
+
+def test_dashboard_redesign_parts(client):
+    html = client.get("/").text
+    assert "Penjualan Dua Kelinci" in html and "Oktober naik 3,6%" in html and "5 outlet perlu dikunjungi" in html
+    assert html.count('class="btn-primary') == 1  # exactly one red primary button
+    assert 'id="chart-cum"' in html and "membuat Oktober menutup bulan Rp30,9 juta di atas September" in html
+    assert 'id="chart-flow"' in html and 'id="flow-focus"' in html and "Jawa Timur &#9650; +92,4% Sep ke Okt" in html
+    for label in ("Buka dashboard", "Lihat 5 outlet", "Region saya", "Tanya data"):
+        assert label in html
+    for label in ("Ringkasan", "Outlet", "Telegram", "Tanya data", "Kualitas data"):
+        assert f'<span class="rail-label">{label}</span>' in html
+    assert html.count("Jadwalkan kunjungan</a>") == 5 and html.count("Salin tugas</button>") == 5
+    assert "Logo dan nama Dua Kelinci milik PT Dua Kelinci, dipakai hanya untuk keperluan tes rekrutmen." in html
+    assert "Kirim ke Telegram</button>" not in html  # sending only when Telegram is configured
+
+
+def test_send_button_only_when_telegram_configured(tmp_path):
+    with make(tmp_path, telegram_bot_token="123:abc", telegram_chat_id="-1") as c:
+        html = c.get("/").text
+        assert html.count('class="btn-primary js-tg-send"') == 1 and html.count('class="btn-primary') == 1
+
+
+def test_brand_assets_are_vendored_and_no_cdn():
+    static = config.ROOT / "src/dk_sales/web/static"
+    font = static / "fonts/plus-jakarta-sans-latin-wght-normal.woff2"
+    assert font.read_bytes()[:4] == b"wOF2"
+    assert "SIL OPEN FONT LICENSE" in (static / "fonts/OFL.txt").read_text()
+    for logo in ("logo-white.png", "logo-red.png"):
+        assert (static / "img" / logo).read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    for p in [static / "app.css", static / "app.js", *(config.ROOT / "src/dk_sales/web/templates").glob("*.html")]:
+        t = p.read_text()
+        assert "fonts.googleapis" not in t and "fonts.gstatic" not in t and "cdn." not in t, p.name
