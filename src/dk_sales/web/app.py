@@ -365,7 +365,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             chart=views.chart_payload(region, brand, heat, period, cum),
             headline_short=an.short_headline(fact, weak),
             cumulative=cum,
-            cum_insight=an.cumulative_insight(cum),
+            cum_insight=an.cumulative_insight(cum, mm),
             hero={
                 "month": hero_month,
                 "value": hero_series["total"] if hero_series else k["net_sales_idr"],

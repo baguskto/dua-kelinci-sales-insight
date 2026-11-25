@@ -13,6 +13,8 @@ Semua angka dihitung di satu tempat (`src/dk_sales/analytics.py`) dan dipakai sa
 | Order | Jumlah nomor invoice penjualan (INV) yang berbeda. |
 | Rata-rata nilai invoice | Net penjualan dibagi jumlah invoice penjualan. |
 | Perubahan bulan | (bulan terakhir di data - bulan sebelumnya) / bulan sebelumnya. Selalu Oktober vs September untuk file ini, apa pun periode yang dipilih. |
+| Hari kerja | Jumlah hari kalender Senin-Sabtu pada bulan itu, dihitung dari kalender (`calendar.monthrange`), bukan dari data. Minggu dikeluarkan karena file tidak punya penjualan rutin di hari Minggu; satu baris Minggu yang ada (INV500813, 27 September) adalah anomali urutan invoice yang sudah tercatat di `docs/01-dq-audit.md`, bukan hari kerja. September 2026 punya 26 hari kerja, Oktober 27. |
+| Perubahan per hari kerja | (net bulan terakhir / hari kerja bulan terakhir - net bulan sebelumnya / hari kerja bulan sebelumnya) / (net bulan sebelumnya / hari kerja bulan sebelumnya). Membandingkan laju harian, bukan total bulan, jadi menunjukkan apakah kenaikan bulanan datang dari penjualan yang lebih kuat atau dari jumlah hari yang lebih banyak. Untuk file ini: Oktober naik 3,6% secara total tetapi -0,2% per hari kerja (Rp32,6 juta/hari di September vs Rp32,5 juta/hari di Oktober), karena Oktober punya satu hari kerja lebih banyak (27 vs 26). |
 | Porsi | Nilai anggota dibagi total pada periode dan filter yang sama. |
 | Periode | Sep-Okt (semua bulan), September, atau Oktober. Periode tampil di setiap judul bagian dan di setiap KPI. |
 

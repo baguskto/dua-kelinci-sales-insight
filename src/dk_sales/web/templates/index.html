@@ -129,6 +129,7 @@
           <p class="k">Penjualan neto &middot; {{ period_label }}</p>
           <p class="v"><span class="n">{{ np[0] }}</span> <span class="u">{{ np[1] }}</span></p>
           <p class="s">{% if mom and period == 'all' %}{{ delta(mom.pct) }} {{ fmt.month_label(mom.curr_month).split()[0] }} vs {{ fmt.month_label(mom.prev_month).split()[0] }}{% else %}{{ fmt.rupiah(kpis.net_sales_idr) }}{% endif %}</p>
+          {% if mom and period == 'all' and mom.per_day_pct is not none %}<p class="s">per hari kerja {{ delta(mom.per_day_pct) }} ({{ mom.curr_trading_days }} vs {{ mom.prev_trading_days }} hari kerja)</p>{% endif %}
           <p class="s">Retur {{ fmt.rupiah_short(kpis.returns_idr) }} sudah dikurangkan</p>
         </div>
         <div class="kpi tint-sand">

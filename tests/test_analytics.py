@@ -19,6 +19,9 @@ def test_totals_and_mom(ds):
     assert t["net_sales_before_returns_idr"] == 1_726_494_000
     m = an.mom(ds.fact)
     assert (m["prev"], m["curr"], m["pct"]) == (847_517_400, 878_448_600, 3.65)
+    assert (m["prev_trading_days"], m["curr_trading_days"]) == (26, 27)
+    assert m["per_day_pct"] == -0.19
+    assert an.trading_days("2026-09") == 26 and an.trading_days("2026-10") == 27
 
 
 def test_breakdown_region_sorted_and_shares_sum(ds):
@@ -88,7 +91,7 @@ def test_summary_is_short_grounded_plain_text(ds):
     s = summary.build(ds.fact, ds.dim_outlet)
     assert len(s.text) <= summary.TELEGRAM_MAX_CHARS
     assert "\n" not in s.text and "*" not in s.text and "|" not in s.text
-    for must in ["Rp1,73 miliar", "Jabodetabek", "Kalimantan", "Kacang Dua Kelinci", "Roni", "OUT1003", "naik 3,6%"]:
+    for must in ["Rp1,73 miliar", "Jabodetabek", "Kalimantan", "Kacang Dua Kelinci", "Roni", "OUT1003", "naik 3,6%", "per hari kerja -0,2%"]:
         assert must in s.text
     assert guard.check(s.text, s.facts, s.pct_facts).ok
 
@@ -158,8 +161,15 @@ def test_cumulative_insight_sentences(ds):
     assert an.cumulative_insight([]) == ""
 
 
+def test_cumulative_insight_notes_the_extra_trading_day(ds):
+    insight = an.cumulative_insight(an.cumulative(ds.fact), an.mom(ds.fact))
+    assert insight.endswith(
+        "Kenaikan +3,6% Oktober ini datang dari satu hari kerja tambahan (27 vs 26 hari kerja), bukan dari laju harian yang lebih tinggi: per hari kerja -0,2%."
+    )
+
+
 def test_short_headline(ds):
     weak = an.weakest_outlets(ds.fact, ds.dim_outlet, "all", 5)
-    assert an.short_headline(ds.fact, weak) == "Oktober naik 3,6% · 5 outlet perlu dikunjungi"
+    assert an.short_headline(ds.fact, weak) == "Oktober naik 3,6% (per hari kerja -0,2%) · 5 outlet perlu dikunjungi"
     jabar = ds.fact[ds.fact["region"] == "Jawa Barat"]
     assert an.short_headline(jabar, []).startswith("Oktober turun 13,9%")

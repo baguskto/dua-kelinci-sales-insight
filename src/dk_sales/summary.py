@@ -41,8 +41,17 @@ def build(fact: pd.DataFrame, dim_outlet: pd.DataFrame, scope_label: str = "", p
         arah = "naik" if mm["change"] >= 0 else "turun"
         parts[-1] += (
             f", {fmt.month_label(mm['curr_month'], long=True).split()[0]} {fmt.rupiah_short(mm['curr'])}, "
-            f"{arah} {fmt.pct(abs(mm['pct']))} dari {fmt.month_label(mm['prev_month'], long=True).split()[0]}."
+            f"{arah} {fmt.pct(abs(mm['pct']))} dari {fmt.month_label(mm['prev_month'], long=True).split()[0]}"
         )
+        if mm["per_day_pct"] is not None:
+            facts += [mm["curr_trading_days"], mm["prev_trading_days"]]
+            pcts.append(mm["per_day_pct"])
+            parts[-1] += (
+                f", tapi per hari kerja {fmt.pct(mm['per_day_pct'], 1, signed=True)} karena "
+                f"{fmt.month_label(mm['curr_month'], long=True).split()[0]} punya {mm['curr_trading_days']} hari kerja "
+                f"vs {mm['prev_trading_days']}"
+            )
+        parts[-1] += "."
     else:
         parts[-1] += "."
 

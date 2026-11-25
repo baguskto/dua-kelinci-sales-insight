@@ -9,6 +9,7 @@ Main measure: net sales after returns = sum(net_sales_idr) over sale and return 
 
 from __future__ import annotations
 
+import calendar
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -113,15 +114,41 @@ def totals(fact: pd.DataFrame, period: str = "all") -> dict:
     }
 
 
+def trading_days(ym: str) -> int:
+    """Monday-Saturday calendar days in a year-month ("2026-10"), computed from the calendar, not the data.
+
+    Sunday is excluded because the file has no regular Sunday sales; the one Sunday row it does
+    have is the invoice-sequence anomaly tracked in docs/01-dq-audit.md (INV500799-INV500823),
+    not a trading day.
+    """
+    year, month = (int(x) for x in ym.split("-"))
+    _, days_in_month = calendar.monthrange(year, month)
+    return sum(1 for d in range(1, days_in_month + 1) if calendar.weekday(year, month, d) != 6)
+
+
 def mom(fact: pd.DataFrame) -> dict | None:
-    """Last month vs the month before it."""
+    """Last month vs the month before it, in total and per trading day (see ``trading_days``)."""
     ms = months(fact)
     if len(ms) < 2:
         return None
     prev, curr = ms[-2], ms[-1]
     p = int(fact.loc[fact["year_month"] == prev, "net_sales_idr"].sum())
     c = int(fact.loc[fact["year_month"] == curr, "net_sales_idr"].sum())
-    return {"prev_month": prev, "curr_month": curr, "prev": p, "curr": c, "change": c - p, "pct": _pct(c, p)}
+    prev_days, curr_days = trading_days(prev), trading_days(curr)
+    per_day_prev, per_day_curr = p / prev_days, c / curr_days
+    return {
+        "prev_month": prev,
+        "curr_month": curr,
+        "prev": p,
+        "curr": c,
+        "change": c - p,
+        "pct": _pct(c, p),
+        "prev_trading_days": prev_days,
+        "curr_trading_days": curr_days,
+        "per_day_prev": per_day_prev,
+        "per_day_curr": per_day_curr,
+        "per_day_pct": _pct(per_day_curr, per_day_prev),
+    }
 
 
 def _pct(curr: float, prev: float) -> float | None:
@@ -448,7 +475,7 @@ def cumulative(fact: pd.DataFrame, last_date: pd.Timestamp | None = None) -> lis
     return out
 
 
-def cumulative_insight(series: list[dict]) -> str:
+def cumulative_insight(series: list[dict], mom: dict | None = None) -> str:
     """One sentence on how the last month's running total compares with the month before it."""
     if len(series) < 2:
         if series:
@@ -474,10 +501,17 @@ def cumulative_insight(series: list[dict]) -> str:
     last_common = len(prev["values"])
     if overtake > last_common:
         behind = prev["values"][-1] - curr["values"][last_common - 1]
-        return (
+        text = (
             f"Sampai tanggal {last_common} {c_name} masih {fmt.rupiah_short(behind)} di bawah {p_name}; "
             f"tanggal {overtake}, yang tidak ada di {p_name}, membuat {c_name} {end}."
         )
+        if mom and mom.get("pct") is not None and mom.get("per_day_pct") is not None:
+            text += (
+                f" Kenaikan {fmt.pct(mom['pct'], 1, signed=True)} {c_name} ini datang dari satu hari kerja tambahan "
+                f"({mom['curr_trading_days']} vs {mom['prev_trading_days']} hari kerja), bukan dari laju harian yang "
+                f"lebih tinggi: per hari kerja {fmt.pct(mom['per_day_pct'], 1, signed=True)}."
+            )
+        return text
     return f"{c_name} menyalip {p_name} pada tanggal {overtake} dan bertahan di atas sampai akhir data; {c_name} {end}."
 
 
@@ -487,7 +521,10 @@ def short_headline(fact: pd.DataFrame, weak: list) -> str:
     mm = mom(fact)
     if mm and mm["pct"] is not None:
         arah = "naik" if mm["change"] >= 0 else "turun"
-        parts.append(f"{fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))}")
+        s = f"{fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))}"
+        if mm["per_day_pct"] is not None:
+            s += f" (per hari kerja {fmt.pct(mm['per_day_pct'], 1, signed=True)})"
+        parts.append(s)
     else:
         parts.append(f"Penjualan {fmt.rupiah_short(int(fact['net_sales_idr'].sum()))}")
     if weak:
