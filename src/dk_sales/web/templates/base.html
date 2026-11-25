@@ -4,28 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf or '' }}">
+<meta name="theme-color" content="#161616">
 <title>{% block title %}Penjualan Dua Kelinci{% endblock %}</title>
+<link rel="preload" href="/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/app.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <script src="/static/vendor/echarts-5.6.0.min.js" defer></script>
 <script src="/static/app.js" defer></script>
 </head>
-<body>
-<header class="topbar">
-  <div class="brandmark"><span class="dot" aria-hidden="true"></span><strong>Penjualan Dua Kelinci</strong></div>
-  {% block topbar %}{% endblock %}
-  {% if user %}
-  <div class="who">
-    <span title="{{ user.roles|join(', ') }}">{{ user.display_name }}</span>
-    {% if user.auth_source != 'dev' %}
-    <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="link" type="submit">Keluar</button></form>
-    {% endif %}
-  </div>
-  {% endif %}
+<body class="{% block bodyclass %}simple{% endblock %}">
+<a class="skip" href="#main">Langsung ke isi</a>
+{% block body %}
+<header class="simplebar">
+  <a class="logo-dot" href="/" aria-label="Penjualan Dua Kelinci, kembali ke dashboard"><img src="/static/img/logo-white.png" alt="" width="34" height="21"></a>
+  <strong class="simplebar-title">Penjualan Dua Kelinci</strong>
+  {% include "_who.html" %}
 </header>
-<main>
+<main id="main" class="simple-main">
 {% block content %}{% endblock %}
 </main>
-<footer class="foot">{% block footer %}Versi {{ version }}{% endblock %}</footer>
+{% include "_footer.html" %}
+{% endblock %}
 </body>
 </html>
