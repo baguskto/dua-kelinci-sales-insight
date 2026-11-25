@@ -386,6 +386,10 @@ def parse(question: str, known: dict, outlets: list[tuple[str, str, str]], last:
     # 1. data quality
     if re.search(r"kualitas data|data (kotor|bersih|bermasalah)|duplikat|karantina|dibersihkan|cleaning|masalah data|\bdq\b|salesman kosong|data quality", q):
         return Intent("data_quality", [("data_quality_summary", {})])
+    # 1.5. per trading day / daily average ("per hari kerja", "rata-rata harian")
+    if re.search(r"per hari kerja|hari kerja|rata.rata harian|rata.rata per hari|trading day", q):
+        args = {"dimension": dim or "total", **{k: v for k, v in filters().items() if k in ("region", "brand")}}
+        return Intent("compare", [("compare_periods", args)], note=note)
     # 2. weakest outlets
     if re.search(
         r"(outlet|toko|pelanggan)\w* (yang )?(paling )?(lemah|terlemah|terburuk|terjelek|paling sedikit|perlu (di)?kunjungi|bermasalah)|terlemah|weakest|paling lemah",

@@ -33,5 +33,7 @@
   {"id": "G32", "q": "SKU terlaris", "tool": "top_bottom", "expect": ["Kacang Kulit 250g Rp343,4 juta"]},
   {"id": "G33", "q": "penjualan cabang Medan", "tool": "sales_by", "expect": ["Rp194,7 juta"]},
   {"id": "G34", "q": "what are total sales by region?", "tool": "sales_by", "expect": ["Jabodetabek Rp495,8 juta"]},
-  {"id": "G35", "q": "kalau bulan Oktober?", "tool": "sales_by", "after": "penjualan cabang Medan", "expect": ["Oktober 2026", "Rp98 juta"]}
+  {"id": "G35", "q": "kalau bulan Oktober?", "tool": "sales_by", "after": "penjualan cabang Medan", "expect": ["Oktober 2026", "Rp98 juta"]},
+  {"id": "G36", "q": "berapa penjualan per hari kerja Oktober dibanding September?", "tool": "compare_periods", "expect": ["Per hari kerja: -0,2%", "Okt 27 hari kerja vs Sep 26"]},
+  {"id": "G37", "q": "rata-rata harian penjualan Oktober", "tool": "compare_periods", "expect": ["Per hari kerja: -0,2%"]}
 ]

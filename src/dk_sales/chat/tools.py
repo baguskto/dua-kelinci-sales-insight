@@ -301,13 +301,24 @@ class ToolRunner:
                 {"label": fmt.month_label(curr), "value": _fmt_metric(c, metric, full=True)},
                 {"label": "Perubahan", "value": fmt.pct(pct, signed=True)},
             ]
-            return ToolResult(
-                "compare_periods", args, {"prev": p, "curr": c, "pct": pct}, text, table, [p, c, c - p, int(curr[:4])], [pct] if pct is not None else []
-            )
+            facts: list[float] = [p, c, c - p, int(curr[:4])]
+            pcts: list[float] = [pct] if pct is not None else []
+            if metric == "net_sales":
+                prev_days, curr_days = an.trading_days(prev), an.trading_days(curr)
+                per_day_pct = an._pct(c / curr_days, p / prev_days)
+                text += (
+                    f" Per hari kerja: {fmt.pct(per_day_pct, 1, signed=True) if per_day_pct is not None else '-'} "
+                    f"({cl} {curr_days} hari kerja vs {pl} {prev_days})."
+                )
+                table.append({"label": "Per hari kerja", "value": fmt.pct(per_day_pct, 1, signed=True)})
+                facts += [prev_days, curr_days]
+                if per_day_pct is not None:
+                    pcts.append(per_day_pct)
+            return ToolResult("compare_periods", args, {"prev": p, "curr": c, "pct": pct}, text, table, facts, pcts)
         rows = [r for r in an.breakdown(f, dim, "all", metric) if r.get("mom_pct") is not None or r.get("curr")]
         rows.sort(key=lambda r: (r.get("mom_pct") is None, -(r.get("mom_pct") or 0)))
-        facts: list[float] = [int(curr[:4])]
-        pcts: list[float] = []
+        facts = [int(curr[:4])]
+        pcts = []
         table = []
         lines = []
         for r in rows[:MAX_N]:
