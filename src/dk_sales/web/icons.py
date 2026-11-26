@@ -22,7 +22,7 @@ def _inner(name: str) -> str:
 
 def icon(name: str, cls: str = "", size: int = 18) -> Markup:
     """Decorative icon; the element next to it carries the accessible text."""
-    return Markup(
+    return Markup(  # noqa: S704  # nosec B704 - fixed attributes plus a vendored Lucide file, no user input
         f'<svg class="ic{" " + cls if cls else ""}" viewBox="0 0 24 24" width="{size}" height="{size}" fill="none" stroke="currentColor" '
         f'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{_inner(name)}</svg>'
     )

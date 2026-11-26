@@ -38,8 +38,8 @@ def _serve(settings: Settings) -> str:
 
 
 def _ready(page) -> None:
-    page.wait_for_selector("#chart-flow svg")
-    page.wait_for_timeout(400)
+    page.wait_for_function("document.fonts.status === 'loaded'")
+    page.wait_for_timeout(300)
 
 
 def main() -> None:
@@ -67,7 +67,7 @@ def main() -> None:
         _ready(desk)
         desk.screenshot(path=IMG / "dashboard-desktop.png")
         desk.screenshot(path=IMG / "dashboard-desktop-full.png", full_page=True)
-        desk.click(".rail-btn[data-open=chat-drawer]")
+        desk.click(".hd-actions [data-open=chat-drawer]")
         desk.click(".chip >> text=Region mana yang turun paling dalam?")
         desk.wait_for_selector(".msg.a .meta")
         desk.screenshot(path=IMG / "chat-drawer.png")
@@ -97,7 +97,7 @@ def main() -> None:
         mob.evaluate("document.querySelector('#sec-weak').scrollIntoView({behavior: 'instant'})")
         mob.wait_for_timeout(300)
         mob.screenshot(path=IMG / "dashboard-mobile-outlet.png")
-        mob.evaluate("document.querySelector('#sec-tg').scrollIntoView({behavior: 'instant'})")
+        mob.click(".c-tg .btn-primary")
         mob.wait_for_timeout(300)
         mob.screenshot(path=IMG / "dashboard-mobile-telegram.png")
 

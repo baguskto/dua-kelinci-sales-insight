@@ -367,43 +367,6 @@ def kpis(fact: pd.DataFrame, period: str = "all") -> dict:
     }
 
 
-def weekly(fact: pd.DataFrame, period: str = "all") -> list[dict]:
-    """Net sales, cartons, active outlets, invoices and discount share per week (weeks start on Monday)."""
-    f = filter_period(fact, period)
-    if f.empty:
-        return []
-    f = f.assign(week=(f["date"] - pd.to_timedelta(f["date"].dt.weekday, unit="D")).dt.strftime("%Y-%m-%d"))
-    sale = f[~f["is_return"]]
-    out = []
-    for w, g in f.groupby("week"):
-        s = sale[sale["week"] == w]
-        gross = int(s["gross_sales_idr"].sum())
-        out.append(
-            {
-                "week": w,
-                "net_sales_idr": int(g["net_sales_idr"].sum()),
-                "qty_carton": int(g["qty_carton"].sum()),
-                "active_outlets": int(s["outlet_id"].nunique()),
-                "invoices": int(s["invoice_no"].nunique()),
-                "avg_invoice_idr": int(round(s["net_sales_idr"].sum() / s["invoice_no"].nunique())) if len(s) else 0,
-                "discount_pct": round(int(s["discount_idr"].sum()) / gross * 100, 2) if gross else 0.0,
-            }
-        )
-    return out
-
-
-def heatmap(fact: pd.DataFrame, period: str = "all") -> dict:
-    """Region x brand net sales matrix, rows and columns sorted by their totals."""
-    f = filter_period(fact, period)
-    if f.empty:
-        return {"regions": [], "brands": [], "cells": []}
-    pv = f.pivot_table(index="region", columns="brand", values="net_sales_idr", aggfunc="sum", fill_value=0)
-    regions = pv.sum(axis=1).sort_values(ascending=False).index.tolist()
-    brands = pv.sum(axis=0).sort_values(ascending=False).index.tolist()
-    cells = [{"region": r, "brand": b, "value": int(pv.at[r, b])} for r in regions for b in brands]
-    return {"regions": regions, "brands": brands, "cells": cells}
-
-
 def compare_months(fact: pd.DataFrame, period: str = "all") -> tuple[str, str] | None:
     """(previous, current) month the dashboard compares: the last two months, or the chosen month and the one before it."""
     ms = months(fact)
@@ -527,27 +490,6 @@ def story(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = "all") -> 
         "worst_region": min(down_r, key=lambda r: (r["change"], r["key"])) if down_r else None,
         "worst_brand": min(down_b, key=lambda r: (r["change"], r["key"])) if down_b else None,
     }
-
-
-def heat_change(fact: pd.DataFrame, prev: str, curr: str) -> dict:
-    """Region x brand change from the previous to the current month, rows and columns sorted by current sales."""
-    f = fact[fact["year_month"].isin([prev, curr])]
-    if f.empty:
-        return {"regions": [], "brands": [], "cells": []}
-    pv = f.pivot_table(index=["region", "brand"], columns="year_month", values="net_sales_idr", aggfunc="sum", fill_value=0)
-    cur = f[f["year_month"] == curr]
-    regions = cur.groupby("region")["net_sales_idr"].sum().reindex(sorted(set(f["region"])), fill_value=0).sort_values(ascending=False).index.tolist()
-    brands = cur.groupby("brand")["net_sales_idr"].sum().reindex(sorted(set(f["brand"])), fill_value=0).sort_values(ascending=False).index.tolist()
-    cells = []
-    for r in regions:
-        for b in brands:
-            if (r, b) in pv.index:
-                p = int(pv.at[(r, b), prev]) if prev in pv.columns else 0
-                c = int(pv.at[(r, b), curr]) if curr in pv.columns else 0
-                cells.append({"region": r, "brand": b, "prev": p, "curr": c, "change": c - p, "pct": _pct(c, p)})
-            else:
-                cells.append({"region": r, "brand": b, "prev": 0, "curr": 0, "change": 0, "pct": None})
-    return {"regions": regions, "brands": brands, "cells": cells}
 
 
 def cumulative(fact: pd.DataFrame, last_date: pd.Timestamp | None = None) -> list[dict]:

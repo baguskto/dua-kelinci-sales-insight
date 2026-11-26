@@ -49,37 +49,80 @@ def _page(browser, **kw):
     return page
 
 
-def test_dashboard_shows_three_answers(server, browser):
+CARDS = [".c-net", ".c-ex", ".c-day", ".c-map", ".c-wf", ".c-top", ".c-share", ".c-move", ".c-weak", ".c-ctn", ".c-dq", ".c-tg"]
+
+FIT = """() => {
+  const out = [];
+  document.querySelectorAll('.card').forEach((c) => {
+    const cr = c.getBoundingClientRect();
+    c.querySelectorAll('*').forEach((e) => {
+      if (e.closest('svg') && e.tagName !== 'svg') return;
+      const r = e.getBoundingClientRect();
+      if (!r.width || getComputedStyle(e).display === 'none') return;
+      if (r.right > cr.right + 1 || r.left < cr.left - 1 || r.bottom > cr.bottom + 1) out.push(c.className + ' > ' + e.tagName + '.' + (e.getAttribute('class') || ''));
+    });
+  });
+  return out;
+}"""
+
+
+def test_one_screen_at_1440x900(server, browser):
     page = _page(browser, viewport={"width": 1440, "height": 900})
     page.goto(server)
-    assert page.locator("#h-region").is_visible()
-    assert page.locator("#h-brand").is_visible()
-    assert page.locator("#h-weak").is_visible()
-    for chart in ("#chart-cum", "#chart-region", "#chart-brand", "#chart-flow"):
-        page.wait_for_selector(chart + " svg")
-    assert page.locator(".wcard").count() == 5
-    assert "OUT1003" in page.locator(".wcard").first.inner_text()
-    assert "Rp1,73 miliar" in page.locator("#tg-text").inner_text()
-    assert page.locator(".btn-primary").count() == 1
+    page.wait_for_function("document.fonts.status === 'loaded'")
+    for sel in CARDS:
+        box = page.locator(sel).bounding_box()
+        assert box and box["y"] + box["height"] <= 900, sel  # every card above the fold
+    assert page.evaluate("document.documentElement.scrollHeight") <= 900
+    assert page.evaluate(FIT) == []
+    assert page.locator(".c-weak tbody tr").count() == 5
+    assert "OUT1003" not in page.locator(".c-weak").inner_text() and "Toko Sinar Abadi" in page.locator(".c-weak").inner_text()
+    assert page.locator("main .btn-primary").count() == 1
     assert page.errors == [], page.errors  # also proves no CSP violations from inline code
 
 
-def test_cumulative_chart_end_labels(server, browser):
+@pytest.mark.parametrize("size", [(1280, 800), (1024, 768), (390, 844)])
+def test_nothing_clipped_or_overflowing(server, browser, size):
+    page = _page(browser, viewport={"width": size[0], "height": size[1]})
+    page.goto(server)
+    page.wait_for_function("document.fonts.status === 'loaded'")
+    assert page.evaluate(FIT) == []
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+    assert page.errors == [], page.errors
+
+
+def test_line_chart_tooltip_follows_keyboard(server, browser):
     page = _page(browser, viewport={"width": 1440, "height": 900})
     page.goto(server)
-    page.wait_for_selector("#chart-cum svg")
-    svg = page.eval_on_selector("#chart-cum svg", "e => e.textContent")
-    assert "Okt  Rp878,4 juta" in svg and "Sep  Rp847,5 juta" in svg, svg
-    assert "membuat Oktober menutup bulan Rp30,9 juta di atas September" in page.locator(".insight").inner_text()
+    tip = page.locator("#net-tip")
+    expect(tip).to_contain_text("Oct 31")  # highlight: the day October passes September
+    expect(tip).to_contain_text("Rp 878.4M")
+    page.focus('svg[data-chart="net"]')
+    page.keyboard.press("ArrowLeft")
+    expect(tip).to_contain_text("Oct 30")
+    page.keyboard.press("Home")
+    expect(tip).to_contain_text("Oct 1")
+    page.keyboard.press("Escape")
+    expect(tip).to_be_hidden()
+    assert page.locator(".lc-ring").get_attribute("cx") == page.evaluate("JSON.parse(document.getElementById('net-points').textContent)[0].x + ''")
+
+
+def test_svg_text_is_sans(server, browser):
+    page = _page(browser, viewport={"width": 1440, "height": 900})
+    page.goto(server)
+    fams = page.evaluate("[...document.querySelectorAll('svg text')].map(t => getComputedStyle(t).fontFamily)")
+    assert fams and all(f.startswith('"Plus Jakarta Sans"') for f in fams), set(fams)
 
 
 def test_period_toggle_and_filter(server, browser):
     page = _page(browser)
     page.goto(server)
-    page.click("nav.periods a:text-is('Okt')")
-    expect(page.locator("#tg-text")).to_contain_text("Oktober 2026")
+    page.click("nav.periods a:text-is('Sep')")
+    expect(page.locator("#h-net")).to_have_text("Net sales")  # no earlier month to compare with
+    page.click("nav.periods a:text-is('Oct')")
+    expect(page.locator("#tg-text")).to_contain_text("Oct vs Sep")
     page.goto(server + "/?period=all&region=Jawa%20Barat")
-    assert page.locator(".fchip").inner_text().startswith("Jawa Barat")
+    assert page.locator(".fchip").inner_text().startswith("West Java")
     page.click(".fchip")
     expect(page.locator(".fchip")).to_have_count(0)
     page.select_option("#f-brand", "Sukro")
@@ -87,29 +130,30 @@ def test_period_toggle_and_filter(server, browser):
     assert "brand=Sukro" in page.url
 
 
-def test_flow_highlight_follows_selection(server, browser):
+def test_map_and_bridge_link_to_filters(server, browser):
     page = _page(browser, viewport={"width": 1440, "height": 900})
     page.goto(server)
-    page.wait_for_selector("#chart-flow svg")
-    expect(page.locator("#flow-badge")).to_have_text("Jawa Timur ▲ +92,4% Sep ke Okt")
-    page.select_option("#flow-focus", "Jawa Barat")
-    expect(page.locator("#flow-badge")).to_have_text("Jawa Barat ▼ -13,9% Sep ke Okt")
-    assert "is-down" in page.locator("#flow-badge").get_attribute("class")
-    expect(page.locator(".rl-row.is-focus .rl-name")).to_have_text("Jawa Barat")
+    page.locator(".bub", has_text="W. Java").locator("circle").click()
+    assert "region=Jawa+Barat" in page.url or "region=Jawa%20Barat" in page.url
+    expect(page.locator(".fchip")).to_contain_text("West Java")
+    page.goto(server)
+    page.locator(".wf-lab", has_text="Grosir Lancar Jaya").click()
+    assert page.url.endswith("/outlet/OUT1036")
 
 
 def test_chat_drawer_answers_with_source(server, browser):
     page = _page(browser)
     page.goto(server)
-    page.click(".rail-btn[data-open=chat-drawer]")
+    page.click(".hd-actions [data-open=chat-drawer]")
     page.fill("#chat-q", "penjualan per region bulan Oktober")
     page.click("#chat-form button")
     page.wait_for_selector(".msg.a .meta")
     ans = page.locator(".msg.a").first.inner_text()
-    assert "Jabodetabek Rp256,8 juta" in ans and "Sumber: sales_by" in ans
+    assert "Jabodetabek Rp256,8 juta" in ans and "Source: sales_by" in ans
     page.click(".chip >> text=Kualitas data")
     expect(page.locator(".msg.a .meta")).to_have_count(2)
-    expect(page.locator(".msg.a").first).to_contain_text("dikarantina")
+    page.keyboard.press("Escape")
+    expect(page.locator("#chat-drawer")).not_to_be_visible()
 
 
 def test_upload_broken_file_shows_error(server, browser, tmp_path):
@@ -120,9 +164,9 @@ def test_upload_broken_file_shows_error(server, browser, tmp_path):
     page.click(".dq-badge")
     page.set_input_files("#upload-file", str(bad))
     page.click("#upload-form button[type=submit]")
-    expect(page.locator("#upload-status")).to_contain_text("Kolom wajib tidak ditemukan")
+    expect(page.locator("#upload-status")).to_contain_text("File rejected.")
     page.goto(server)
-    assert "Rp1,73" in page.locator(".kpi-main").inner_text()
+    assert "878.4" in page.locator(".c-net .v").inner_text()
 
 
 def test_visit_actions_work_offline(server, browser):
@@ -130,68 +174,32 @@ def test_visit_actions_work_offline(server, browser):
     ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=server)
     page = ctx.new_page()
     page.goto(server)
-    card = page.locator(".wcard").first
+    row = page.locator(".c-weak tbody tr").first
     with page.expect_download() as dl:
-        card.get_by_role("link", name="Jadwalkan kunjungan").click()
+        row.get_by_role("link", name="Schedule a visit to Toko Sinar Abadi (.ics)").click()
     d = dl.value
-    assert d.suggested_filename == "kunjungan-OUT1003.ics"
+    assert d.suggested_filename == "visit-OUT1003.ics"
     ics = open(d.path(), encoding="utf-8").read()
-    assert ics.startswith("BEGIN:VCALENDAR") and "SUMMARY:Kunjungi Toko Sinar Abadi (OUT1003)" in ics
-    card.get_by_role("button", name="Salin tugas").click()
-    expect(card.locator(".w-status")).to_have_text("Tugas tersalin. Tempel di chat salesman.")
+    assert ics.startswith("BEGIN:VCALENDAR") and "SUMMARY:Visit Toko Sinar Abadi (OUT1003)" in ics
+    row.get_by_role("button", name="Copy the visit task for Toko Sinar Abadi").click()
+    expect(page.locator("#weak-status")).to_have_text("Task copied.")
     copied = page.evaluate("navigator.clipboard.readText()")
-    assert copied.startswith("Tugas kunjungan: Toko Sinar Abadi (OUT1003)") and "Saran:" in copied
-    page.click(".btn-primary")
-    expect(page.locator("#tg-status")).to_have_text("Ringkasan tersalin. Tempel di grup Telegram.")
-    assert page.evaluate("navigator.clipboard.readText()").startswith("Ringkasan penjualan Dua Kelinci")
+    assert copied.startswith("Visit task: Toko Sinar Abadi (OUT1003)") and "Suggestion:" in copied
+    page.click(".c-tg .btn-primary")
+    page.click("#copy-btn")
+    expect(page.locator("#tg-status")).to_have_text("Summary copied. Paste it into the Telegram group.")
+    assert page.evaluate("navigator.clipboard.readText()").startswith("Dua Kelinci, Oct vs Sep")
     ctx.close()
 
 
-@pytest.mark.parametrize("width", [390, 1280, 1440, 1600])
-def test_kpi_numbers_never_overlap(server, browser, width):
-    page = _page(browser, viewport={"width": width, "height": 900})
-    page.goto(server)
-    page.wait_for_function("document.fonts.status === 'loaded'")
-    problems = page.evaluate(
-        """() => {
-      const out = [];
-      const inside = (a, b) => a.left >= b.left - 0.5 && a.right <= b.right + 0.5 && a.top >= b.top - 0.5 && a.bottom <= b.bottom + 0.5;
-      const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-      const cards = [...document.querySelectorAll('.kpi')];
-      cards.forEach((k, i) => {
-        const box = k.getBoundingClientRect();
-        const v = k.querySelector('.v');
-        [...v.querySelectorAll('.n, .u')].forEach((n) => { if (!inside(n.getBoundingClientRect(), box)) out.push(`card ${i}: number outside card`); });
-        [...k.querySelectorAll('.k, .s')].forEach((t) => { if (overlap(t.getBoundingClientRect(), v.querySelector('.n').getBoundingClientRect())) out.push(`card ${i}: text overlaps number`); });
-        if (v.scrollWidth > v.clientWidth + 1) out.push(`card ${i}: number overflows`);
-        cards.forEach((o, j) => { if (j > i && overlap(box, o.getBoundingClientRect())) out.push(`cards ${i} and ${j} overlap`); });
-      });
-      document.querySelectorAll('.w-actions > *').forEach((el, i) => {
-        const box = el.getBoundingClientRect();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const t = range.getClientRects()[0];
-        if (!t || t.left < box.left - 0.5 || t.right > box.right + 0.5) out.push(`outlet action ${i} ('${el.textContent.trim()}'): text clipped by its button`);
-      });
-      return out;
-    }"""
-    )
-    assert problems == []
-
-
-def test_mobile_layout(server, browser):
+def test_mobile_layout_is_one_column_in_order(server, browser):
     page = _page(browser, viewport={"width": 390, "height": 844})
     page.goto(server)
-    y = {s: page.locator(s).bounding_box()["y"] for s in (".mhero", "#sec-rlist", "#sec-weak", "#sec-tg", ".kpis", "#sec-cum")}
-    assert y[".mhero"] < y["#sec-rlist"] < y["#sec-weak"] < y["#sec-tg"] < y[".kpis"] < y["#sec-cum"]
-    assert "Rp878,4 juta" in page.locator(".mhero").inner_text()
-    assert page.locator(".mhero-spark").is_visible()
+    boxes = [page.locator(s).bounding_box() for s in CARDS]
+    assert all(b["width"] >= 350 for b in boxes)
+    assert [b["y"] for b in boxes] == sorted(b["y"] for b in boxes)  # same order as desktop
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
-    for sel in ("#sec-rlist", "#sec-weak", "#sec-tg"):
-        assert page.locator(sel).bounding_box()["width"] >= 350, sel
-    bar = page.locator(".rail").bounding_box()
-    assert bar["y"] + bar["height"] >= 843 and bar["width"] >= 389  # rail is the bottom bar
-    page.click(".rail-btn[data-open=chat-drawer]")
+    page.click(".hd-actions [data-open=chat-drawer]")
     sheet = page.locator("#chat-drawer").bounding_box()
     assert sheet["width"] >= 389 and sheet["height"] >= 843  # chat is a full-screen sheet
     assert page.errors == [], page.errors
