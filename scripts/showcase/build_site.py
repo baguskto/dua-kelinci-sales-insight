@@ -1,97 +1,89 @@
-"""Build the GitHub Pages site into _site/: one page, the static snapshot of the dashboard exported
-from the running app (default view, real data). The shot and the motion GIFs live in the README only.
+"""Build the GitHub Pages site into _site/: a static export of every GET view of the dashboard, real data.
 
-In the snapshot every control that needs the server (period, filters, chat, upload, Telegram send,
-print, .ics, CSV, links to filtered views and outlet pages) is disabled or turned into plain text,
-and labelled; drawers, tooltips, the line-chart tooltip and "Copy task" keep working offline.
+The app runs in-process with static_export=True and each view is rendered by its own route, then written to a
+path GitHub Pages can serve (it ignores query strings): every period x region x brand dashboard, the 52 outlet
+pages, the visit .ics files, the print summaries and the CSV exports. dk_sales.web.static_site maps the URLs and
+rewrites the links relative to each page, because the site lives under /dua-kelinci-sales-insight/.
+
+Chat: the offline engine answers the example questions here, at build time, and the drawer reads those answers.
+Free questions, upload and Telegram send need a server; the pages say so next to the control.
 
     uv run python scripts/showcase/build_site.py
+    uv run python scripts/showcase/check_site.py _site     # every link resolves
 """
 
 from __future__ import annotations
 
+import json
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from fastapi.testclient import TestClient
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
-sys.path.insert(0, str(HERE.parent))
-from ui_screenshots import _serve  # noqa: E402
+from dk_sales import analytics as an
+from dk_sales.web import auth, views
+from dk_sales.web.app import create_app
+from dk_sales.web.settings import Settings
+from dk_sales.web.static_site import Route, SiteMap, rewrite_html
 
-from dk_sales.web.settings import Settings  # noqa: E402
-
+ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "_site"
 STATIC = ROOT / "src/dk_sales/web/static"
-REPO = "https://github.com/baguskto/dua-kelinci-sales-insight"
 
-# Runs in the page before serialising it: makes the snapshot honest about what works without a server.
-FREEZE = """(repo) => {
-  const note = (el, text) => { el.setAttribute('title', text); el.setAttribute('aria-disabled', 'true'); };
-  const FULL = 'Needs the full app';
-  // Plain text instead of links that need the server (filters, outlet pages, CSV, print, .ics).
-  document.querySelectorAll('a[href]').forEach((a) => {
-    const h = a.getAttribute('href');
-    if (h.startsWith('#') || h.startsWith('http')) return;
-    if (a.matches('.btn-sec.sm, .hlink, #tg-drawer a.btn-sec')) {
-      const s = document.createElement('span'); s.className = a.className + ' is-off'; s.innerHTML = a.innerHTML; note(s, FULL);
-      if (a.matches('.hlink, #tg-drawer a.btn-sec')) s.append(' (full app)');
-      a.replaceWith(s); return;
+
+def build(out: Path = OUT) -> dict[str, int]:
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(STATIC, out / "static")
+    # One in-process client renders ~800 routes: the per-IP request limit is for real visitors, not the build.
+    settings = Settings(app_env="test", data_dir=Path(tempfile.mkdtemp()) / "var", static_export=True, rate_limit_per_minute=1_000_000)
+    app = create_app(settings)
+    with TestClient(app) as client:  # the lifespan loads sales.csv
+        ds = app.state.store.active
+        site = SiteMap(sorted(set(ds.fact["region"])), sorted(set(ds.fact["brand"])), sorted(an.valid_periods(ds.fact)))
+
+        answers = {q: app.state.chat.answer(q, ds, auth.DEV_USER, f"static-{i}").to_dict() for i, q in enumerate(views.CHAT_EXAMPLES)}
+        (out / "static/chat-answers.json").write_text(json.dumps(answers, ensure_ascii=False, default=str))
+
+        todo: list[Route] = [*site.all_views(), *(site.route(f"/outlet/{o}") for o in sorted(ds.dim_outlet["outlet_id"]))]  # type: ignore[misc]
+        done: dict[str, str] = {}
+        linked_static: set[str] = set()
+        while todo:
+            r = todo.pop()
+            if r.path in done:
+                if done[r.path] != r.url:
+                    raise SystemExit(f"two URLs map to {r.path}: {done[r.path]} and {r.url}")
+                continue
+            done[r.path] = r.url
+            if r.path.startswith("static/"):
+                linked_static.add(r.path)
+                continue
+            resp = client.get(r.url)
+            if resp.status_code != 200:
+                raise SystemExit(f"{r.url} -> HTTP {resp.status_code}")
+            dest = out / r.file
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if resp.headers["content-type"].startswith("text/html"):
+                found: set[Route] = set()
+                dest.write_text(rewrite_html(resp.text, r.path, site, found))
+                todo.extend(found)
+            else:
+                dest.write_bytes(resp.content)
+    missing = sorted(p for p in linked_static if not (out / p).is_file())
+    if missing:
+        raise SystemExit(f"linked static files missing: {missing}")
+    files = [f for f in out.rglob("*") if f.is_file()]
+    return {
+        "pages": sum(1 for f in files if f.suffix == ".html"),
+        "files": len(files),
+        "bytes": sum(f.stat().st_size for f in files),
+        "views": len(site.all_views()),
     }
-    a.removeAttribute('href');  // plain text now: same look, no dead link
-  });
-  document.querySelectorAll('.filt select, .filt button').forEach((el) => { el.disabled = true; note(el, FULL); });
-  document.querySelectorAll('.filt select option:first-child').forEach((o) => { o.textContent += ' (full app)'; });
-  const ask = document.querySelector('.hd-actions [data-open=chat-drawer]');
-  if (ask) { ask.disabled = true; ask.removeAttribute('data-open'); note(ask, FULL); ask.append(' (full app)'); }
-  document.querySelectorAll('#upload-form, .js-tg-send, form[action="/dataset/reset"], #chat-drawer').forEach((el) => el.remove());
-  document.querySelectorAll('.who').forEach((el) => el.remove());
-  document.querySelectorAll('.seg a').forEach((el) => note(el, FULL));
-  const bar = document.createElement('a');
-  bar.className = 'snapshot-note';
-  bar.href = repo;
-  bar.title = 'Static snapshot of sales.csv. Period, filters, chat, upload, Telegram and links need the server.';
-  bar.textContent = 'Snapshot: full app on GitHub';
-  document.querySelector('.filt').after(bar);
-  document.querySelector('meta[name=csrf-token]')?.remove();
-  return '<!doctype html>\\n' + document.documentElement.outerHTML;
-}"""
-
-SNAPSHOT_CSS = """
-/* Static snapshot only (build_site.py). */
-.snapshot-note { font-size: 13px; color: var(--muted-on-canvas); white-space: nowrap; }
-.snapshot-note:hover { color: var(--ink); }
-.is-off, .filt select:disabled, .hd-actions button:disabled, .seg a { opacity: .55; cursor: not-allowed; }
-.seg a[aria-current="page"] { opacity: 1; }
-a:not([href]) { cursor: default; }
-a:not([href]):hover, a:not([href]):hover * { background: none; text-decoration: none; }
-"""
 
 
 def main() -> None:
-    shutil.rmtree(OUT, ignore_errors=True)
-    dash = OUT
-    for sub in ("fonts", "img", "vendor/lucide"):
-        shutil.copytree(STATIC / sub, dash / "static" / sub)
-    shutil.copy(STATIC / "app.js", dash / "static/app.js")
-    shutil.copy(STATIC / "favicon.svg", dash / "static/favicon.svg")
-    (dash / "static/app.css").write_text((STATIC / "app.css").read_text().replace('url("/static/', 'url("../static/') + SNAPSHOT_CSS)
-
-    url = _serve(Settings(app_env="test", data_dir=Path(tempfile.mkdtemp()) / "var"))
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        page = b.new_page(viewport={"width": 1440, "height": 900})
-        page.goto(url)
-        page.wait_for_function("document.fonts.status === 'loaded'")
-        html = page.evaluate(FREEZE, REPO)
-        b.close()
-    # The live page ran app.js already (class "js", tooltip placed); ship the markup clean, relative paths.
-    html = html.replace('<html lang="en" class="js">', '<html lang="en">').replace('"/static/', '"static/').replace("url(/static/", "url(static/")
-    (dash / "index.html").write_text(html)
-    print(f"{OUT}: {sum(1 for _ in OUT.rglob('*') if _.is_file())} files")
+    stats = build()
+    print(f"{OUT}: {stats['pages']} pages ({stats['views']} dashboard views), {stats['files']} files, {stats['bytes'] / 1e6:.1f} MB")
 
 
 if __name__ == "__main__":
