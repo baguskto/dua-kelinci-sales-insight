@@ -404,50 +404,150 @@ def heatmap(fact: pd.DataFrame, period: str = "all") -> dict:
     return {"regions": regions, "brands": brands, "cells": cells}
 
 
-def headlines(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str, region_rows: list[dict], brand_rows: list[dict], weak: list) -> dict:
-    """One plain sentence per section, built only from computed numbers."""
+def compare_months(fact: pd.DataFrame, period: str = "all") -> tuple[str, str] | None:
+    """(previous, current) month the dashboard compares: the last two months, or the chosen month and the one before it."""
     ms = months(fact)
-    out: dict[str, str] = {}
-    t = totals(fact, period)
-    plabel = fmt.period_label(period, ms)
-    mm = mom(fact) if period == "all" else None
-    s = f"Penjualan {plabel} {fmt.rupiah_short(t['net_sales_idr'])}"
-    if mm and mm["pct"] is not None:
-        arah = "naik" if mm["change"] >= 0 else "turun"
-        s += f"; {fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))} dari {fmt.month_label(mm['prev_month'], long=True).split()[0]}"
-    out["overall"] = s + "."
-    movers = [r for r in region_rows if r.get("mom_pct") is not None]
-    if len(movers) > 1:
-        up = max(movers, key=lambda r: r["mom_pct"])
-        down = min(movers, key=lambda r: r["mom_pct"])
-        m1 = fmt.month_label(up["prev_month"], long=True).split()[0]
-        parts = []
-        if up["mom_pct"] > 0:
-            parts.append(f"{up['key']} naik {fmt.pct(up['mom_pct'])} dari {m1}, tertinggi di antara region")
-        if down["mom_pct"] < 0:
-            parts.append(f"{down['key']} turun {fmt.pct(abs(down['mom_pct']))}, terdalam")
-        out["region"] = ("; ".join(parts) or f"Semua region bergerak di bawah {fmt.pct(up['mom_pct'])}") + "."
-    elif region_rows:
-        out["region"] = f"{region_rows[0]['key']} {fmt.rupiah_short(region_rows[0]['value'])} pada {plabel}."
-    if brand_rows:
-        top = brand_rows[0]
-        s = f"{top['key']} menyumbang {fmt.pct(top['share_pct'])} penjualan {plabel}"
-        movers = [r for r in brand_rows if r.get("mom_pct") is not None]
-        if movers and period == "all":
-            down = min(movers, key=lambda r: r["mom_pct"])
-            if down["mom_pct"] < 0:
-                s += f"; {down['key']} turun {fmt.pct(abs(down['mom_pct']))} dari bulan sebelumnya"
-        out["brand"] = s + "."
-    if weak:
-        worst = max(w.index_pct for w in weak)
-        s = f"{len(weak)} outlet ini di bawah {fmt.pct(worst if worst >= 10 else 10, 0)} median outlet sejenis"
-        flagged = [w for w in weak if any("di luar urutan" in n for n in w.notes)]
-        if flagged and len(flagged) == len(weak):
-            s += "; semuanya dari invoice bernomor di luar urutan, jadi cek input ke admin sebelum kunjungan"
-        elif flagged:
-            s += f"; {len(flagged)} dari invoice bernomor di luar urutan"
-        out["weak"] = s + "."
-    return out
+    if period == "all":
+        return (ms[-2], ms[-1]) if len(ms) >= 2 else None
+    if period in ms and ms.index(period) > 0:
+        return ms[ms.index(period) - 1], period
+    return None
+
+
+def _change_rows(fact: pd.DataFrame, col: str, prev: str, curr: str) -> list[dict]:
+    pv = fact[fact["year_month"].isin([prev, curr])].pivot_table(index=col, columns="year_month", values="net_sales_idr", aggfunc="sum", fill_value=0)
+    rows = []
+    for k in pv.index:
+        p = int(pv.at[k, prev]) if prev in pv.columns else 0
+        c = int(pv.at[k, curr]) if curr in pv.columns else 0
+        rows.append({"key": k, "prev": p, "curr": c, "change": c - p, "pct": _pct(c, p)})
+    rows.sort(key=lambda r: (-r["change"], str(r["key"])))
+    return rows
+
+
+def top_contributor(fact: pd.DataFrame, dim_outlet: pd.DataFrame, prev: str, curr: str) -> dict | None:
+    """The outlet that moved most in the direction of the total change (the biggest driver of the delta).
+
+    None when no outlet moved in that direction. ``share_of_change_pct`` can exceed 100: an outlet can
+    add more than the total when the rest of the business fell.
+    """
+    rows = _change_rows(fact, "outlet_id", prev, curr)
+    if not rows:
+        return None
+    total = sum(r["change"] for r in rows)
+    sign = 1 if total >= 0 else -1
+    top = max(rows, key=lambda r: (r["change"] * sign, r["key"]))
+    if top["change"] * sign <= 0:
+        return None
+    o = top["key"]
+    d = dim_outlet.set_index("outlet_id")
+    rows_o = fact[(fact["outlet_id"] == o) & (~fact["is_return"])]
+    curr_total = int(fact.loc[fact["year_month"] == curr, "net_sales_idr"].sum())
+
+    def per(m: str, col: str, how: str) -> int:
+        g = rows_o.loc[rows_o["year_month"] == m, col]
+        return int(g.nunique() if how == "nunique" else g.sum())
+
+    return {
+        **top,
+        "outlet_id": o,
+        "outlet_name": d.at[o, "outlet_name"],
+        "outlet_type": d.at[o, "outlet_type"],
+        "branch": d.at[o, "branch"],
+        "region": d.at[o, "region"],
+        "invoices_prev": per(prev, "invoice_no", "nunique"),
+        "invoices_curr": per(curr, "invoice_no", "nunique"),
+        "cartons_prev": per(prev, "qty_carton", "sum"),
+        "cartons_curr": per(curr, "qty_carton", "sum"),
+        "share_of_curr_pct": round(top["curr"] / curr_total * 100, 4) if curr_total else None,
+        "share_of_change_pct": round(top["change"] / total * 100, 1) if total else None,
+    }
+
+
+def story(fact: pd.DataFrame, dim_outlet: pd.DataFrame, period: str = "all") -> dict | None:
+    """Month-on-month story for the first screen, computed for whatever file, scope and filters are loaded.
+
+    Total change, change without the top contributing outlet, regions down N of M, a bridge
+    (waterfall) from the previous to the current month by region with the top outlet split out of
+    its region, and the three decisions: top-outlet spike, biggest falling region, biggest falling brand.
+    The bridge steps always sum exactly to the total change.
+    """
+    cm = compare_months(fact, period)
+    if cm is None:
+        return None
+    prev, curr = cm
+    p = int(fact.loc[fact["year_month"] == prev, "net_sales_idr"].sum())
+    c = int(fact.loc[fact["year_month"] == curr, "net_sales_idr"].sum())
+    pdays, cdays = trading_days(prev), trading_days(curr)
+    regions = _change_rows(fact, "region", prev, curr)
+    brands = sorted(_change_rows(fact, "brand", prev, curr), key=lambda r: (-r["curr"], str(r["key"])))
+    top = top_contributor(fact, dim_outlet, prev, curr)
+
+    steps = []
+    for r in regions:
+        if top and r["key"] == top["region"] and len(set(fact.loc[fact["region"] == r["key"], "outlet_id"])) > 1:
+            steps.append({"key": top["outlet_name"], "region": r["key"], "change": top["change"], "is_top": True, "outlet_id": top["outlet_id"]})
+            steps.append({"key": r["key"], "region": r["key"], "change": r["change"] - top["change"], "is_top": False, "rest": True})
+        else:
+            steps.append({"key": r["key"], "region": r["key"], "change": r["change"], "is_top": bool(top and r["key"] == top["region"])})
+    steps.sort(key=lambda s: (-s["change"], s["key"]))
+    running = p
+    for s in steps:
+        s["start"], running = running, running + s["change"]
+        s["end"] = running
+
+    ex_top = None
+    if top:
+        ep, ec = p - top["prev"], c - top["curr"]
+        ex_top = {"prev": ep, "curr": ec, "change": ec - ep, "pct": _pct(ec, ep)}
+    qty = {m: int(fact.loc[fact["year_month"] == m, "qty_carton"].sum()) for m in (prev, curr)}
+    down_r = [r for r in regions if r["change"] < 0]
+    down_b = [b for b in brands if b["change"] < 0]
+    return {
+        "prev_month": prev,
+        "curr_month": curr,
+        "prev": p,
+        "curr": c,
+        "change": c - p,
+        "pct": _pct(c, p),
+        "prev_trading_days": pdays,
+        "curr_trading_days": cdays,
+        "per_day_prev": p / pdays,
+        "per_day_curr": c / cdays,
+        "per_day_pct": _pct(c / cdays, p / pdays),
+        "cartons_prev": qty[prev],
+        "cartons_curr": qty[curr],
+        "top": top,
+        "ex_top": ex_top,
+        "regions": regions,
+        "regions_down": len(down_r),
+        "regions_total": len(regions),
+        "brands": brands,
+        "bridge": steps,
+        "worst_region": min(down_r, key=lambda r: (r["change"], r["key"])) if down_r else None,
+        "worst_brand": min(down_b, key=lambda r: (r["change"], r["key"])) if down_b else None,
+    }
+
+
+def heat_change(fact: pd.DataFrame, prev: str, curr: str) -> dict:
+    """Region x brand change from the previous to the current month, rows and columns sorted by current sales."""
+    f = fact[fact["year_month"].isin([prev, curr])]
+    if f.empty:
+        return {"regions": [], "brands": [], "cells": []}
+    pv = f.pivot_table(index=["region", "brand"], columns="year_month", values="net_sales_idr", aggfunc="sum", fill_value=0)
+    cur = f[f["year_month"] == curr]
+    regions = cur.groupby("region")["net_sales_idr"].sum().reindex(sorted(set(f["region"])), fill_value=0).sort_values(ascending=False).index.tolist()
+    brands = cur.groupby("brand")["net_sales_idr"].sum().reindex(sorted(set(f["brand"])), fill_value=0).sort_values(ascending=False).index.tolist()
+    cells = []
+    for r in regions:
+        for b in brands:
+            if (r, b) in pv.index:
+                p = int(pv.at[(r, b), prev]) if prev in pv.columns else 0
+                c = int(pv.at[(r, b), curr]) if curr in pv.columns else 0
+                cells.append({"region": r, "brand": b, "prev": p, "curr": c, "change": c - p, "pct": _pct(c, p)})
+            else:
+                cells.append({"region": r, "brand": b, "prev": 0, "curr": 0, "change": 0, "pct": None})
+    return {"regions": regions, "brands": brands, "cells": cells}
 
 
 def cumulative(fact: pd.DataFrame, last_date: pd.Timestamp | None = None) -> list[dict]:
@@ -473,60 +573,3 @@ def cumulative(fact: pd.DataFrame, last_date: pd.Timestamp | None = None) -> lis
             running.append(total)
         out.append({"month": m, "values": running, "total": int(days.sum()), "daily": per_day})
     return out
-
-
-def cumulative_insight(series: list[dict], mom: dict | None = None) -> str:
-    """One sentence on how the last month's running total compares with the month before it."""
-    if len(series) < 2:
-        if series:
-            s = series[-1]
-            return f"{fmt.month_label(s['month'], long=True).split()[0]} {fmt.rupiah_short(s['total'])} sampai tanggal {len(s['values'])}."
-        return ""
-    prev, curr = series[-2], series[-1]
-    p_name = fmt.month_label(prev["month"], long=True).split()[0]
-    c_name = fmt.month_label(curr["month"], long=True).split()[0]
-    n = len(curr["values"])
-    # Compare day by day; once the previous month has ended its total stays flat.
-    pv = [prev["values"][min(i, len(prev["values"]) - 1)] for i in range(n)]
-    ahead = [c >= p for c, p in zip(curr["values"], pv, strict=True)]
-    gap = curr["total"] - prev["total"]
-    end = f"menutup bulan {fmt.rupiah_short(abs(gap))} {'di atas' if gap >= 0 else 'di bawah'} {p_name}"
-    if all(ahead):
-        return f"{c_name} selalu di atas {p_name} sejak tanggal 1 dan {end}."
-    if not ahead[-1]:
-        since = n - next(i for i, a in enumerate(reversed(ahead)) if a) if any(ahead) else 0
-        start = f"sejak tanggal {since + 1}" if any(ahead) else "sepanjang bulan"
-        return f"{c_name} tertinggal dari {p_name} {start} dan {end}."
-    overtake = n - next(i for i, a in enumerate(reversed(ahead)) if not a) + 1
-    last_common = len(prev["values"])
-    if overtake > last_common:
-        behind = prev["values"][-1] - curr["values"][last_common - 1]
-        text = (
-            f"Sampai tanggal {last_common} {c_name} masih {fmt.rupiah_short(behind)} di bawah {p_name}; "
-            f"tanggal {overtake}, yang tidak ada di {p_name}, membuat {c_name} {end}."
-        )
-        if mom and mom.get("pct") is not None and mom.get("per_day_pct") is not None:
-            text += (
-                f" Kenaikan {fmt.pct(mom['pct'], 1, signed=True)} {c_name} ini datang dari satu hari kerja tambahan "
-                f"({mom['curr_trading_days']} vs {mom['prev_trading_days']} hari kerja), bukan dari laju harian yang "
-                f"lebih tinggi: per hari kerja {fmt.pct(mom['per_day_pct'], 1, signed=True)}."
-            )
-        return text
-    return f"{c_name} menyalip {p_name} pada tanggal {overtake} dan bertahan di atas sampai akhir data; {c_name} {end}."
-
-
-def short_headline(fact: pd.DataFrame, weak: list) -> str:
-    """Header line: last month vs the month before, and how many outlets need a visit."""
-    parts = []
-    mm = mom(fact)
-    if mm and mm["pct"] is not None:
-        arah = "naik" if mm["change"] >= 0 else "turun"
-        s = f"{fmt.month_label(mm['curr_month'], long=True).split()[0]} {arah} {fmt.pct(abs(mm['pct']))}"
-        if mm["per_day_pct"] is not None:
-            s += f" (per hari kerja {fmt.pct(mm['per_day_pct'], 1, signed=True)})"
-        parts.append(s)
-    else:
-        parts.append(f"Penjualan {fmt.rupiah_short(int(fact['net_sales_idr'].sum()))}")
-    if weak:
-        parts.append(f"{len(weak)} outlet perlu dikunjungi")
-    return " · ".join(parts)

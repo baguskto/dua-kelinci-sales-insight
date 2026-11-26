@@ -2,6 +2,6 @@
 
 | File | Library | Version | License | sha256 |
 |---|---|---|---|---|
-| echarts-5.6.0.min.js | Apache ECharts (npm `echarts`, `dist/echarts.min.js`) | 5.6.0 | Apache-2.0 (`ECHARTS-LICENSE.txt`) | bf4a223524e40b77c304bec67e1222cf551f14880cf42c69dc046558e11c07b1 |
+| lucide/*.svg | Lucide icons (npm `lucide-static`, `icons/`) | 1.81.0 | ISC (`lucide/LICENSE.txt`) | per file, see `tests/test_web.py::test_icons_are_vendored_lucide` |
 
-Served from `/static/vendor/`; no CDN, works offline. Test `tests/test_web.py::test_vendored_echarts_hash` checks the hash.
+Lucide icons are read once at startup and inlined into the page (`dk_sales.web.views.icon`), so they take the text color and need no extra request.

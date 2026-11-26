@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import UTC, date, datetime, timedelta, timezone
+from functools import cache
+from pathlib import Path
 
 from dk_sales import fmt
 
@@ -27,6 +30,20 @@ def sparkline(values: list[float], width: int = 120, height: int = 28, pad: int 
     line = " ".join(f"{x},{y}" for x, y in pts)
     area = f"{line} {pts[-1][0]},{height} {pts[0][0]},{height}"
     return {"points": line, "area": area, "last": pts[-1], "width": width, "height": height}
+
+
+def spark_pair(prev: list[float], curr: list[float], width: int = 120, height: int = 32, pad: int = 2) -> dict:
+    """Two running-total lines on one scale (previous month grey, current month ink) for a KPI card."""
+    n = max(len(prev), len(curr), 2)
+    hi = max(prev + curr + [1])
+
+    def pts(vals: list[float]) -> str:
+        return " ".join(f"{round(pad + (width - 2 * pad) * i / (n - 1), 1)},{round(height - pad - (height - 2 * pad) * v / hi, 1)}" for i, v in enumerate(vals))
+
+    c = pts(curr)
+    last = c.split()[-1] if c else f"{pad},{height - pad}"
+    area = f"{c} {last.split(',')[0]},{height} {pad},{height}" if c else ""
+    return {"prev": pts(prev), "curr": c, "area": area, "last": [float(v) for v in last.split(",")], "width": width, "height": height}
 
 
 def bullet(value: float, median: float, width: int = 220) -> dict:
@@ -163,65 +180,93 @@ def visit_ics(w, period_label: str, day: date, stamp: datetime) -> str:
     return "\r\n".join(_ics_fold(x) for x in lines) + "\r\n"
 
 
-def sankey_focus(region: list[dict]) -> str | None:
-    """Region highlighted by default in the region x brand flow: the largest absolute change."""
-    movers = [r for r in region if r.get("change") is not None]
-    if movers:
-        return max(movers, key=lambda r: (abs(r["change"]), r["key"]))["key"]
-    return region[0]["key"] if region else None
+def waterfall(st: dict) -> list[dict]:
+    """Rows for the horizontal bridge chart: previous total, one step per contribution, current total.
+
+    x positions are percent of the track (0..100). The axis starts below the lowest running total,
+    not at zero, so the steps stay readable; total bars carry a break mark and their exact number.
+    """
+    steps = st["bridge"]
+    points = [st["prev"], st["curr"], *(s["start"] for s in steps), *(s["end"] for s in steps)]
+    lo, hi = min(points), max(points)
+    span = (hi - lo) or abs(hi) or 1
+    axis_lo, axis_hi = lo - span * 0.18, hi + span * 0.04
+
+    def x(v: float) -> float:
+        return round((v - axis_lo) / (axis_hi - axis_lo) * 100, 2)
+
+    rows = [{"kind": "total", "label": fmt.month_label(st["prev_month"]).split()[0], "value": st["prev"], "x0": 0.0, "x1": x(st["prev"]), "next": x(st["prev"])}]
+    for s in steps:
+        a, b = sorted((x(s["start"]), x(s["end"])))
+        rows.append({"kind": "step", **s, "x0": a, "x1": max(b, a + 0.4), "from": x(s["start"]), "next": x(s["end"]), "up": s["change"] >= 0})
+    rows.append({"kind": "total", "label": fmt.month_label(st["curr_month"]).split()[0], "value": st["curr"], "x0": 0.0, "x1": x(st["curr"]), "from": x(st["curr"]), "end": True})
+    return rows
 
 
-def chart_payload(region: list[dict], brand: list[dict], heat: dict, period: str, cumulative: list[dict] | None = None) -> dict:
-    def lab(v: int) -> str:
-        return fmt.rupiah_short(v)
+def heat_bucket(pct: float | None) -> str:
+    """Diverging color class for a region x brand change; the cell also shows the arrow and the number."""
+    if pct is None or pct == 0:
+        return "z"
+    a = abs(pct)
+    level = 3 if a >= 20 else 2 if a >= 8 else 1
+    return f"{'p' if pct > 0 else 'n'}{level}"
 
-    reg = [
-        {
-            "key": r["key"],
-            "value": r["value"],
-            "label": lab(r["value"]),
-            "prev": r.get("prev"),
-            "curr": r.get("curr"),
-            "prev_label": lab(r["prev"]) if r.get("prev") is not None else None,
-            "curr_label": lab(r["curr"]) if r.get("curr") is not None else None,
-            "mom": r.get("mom_pct"),
-            "mom_label": fmt.pct(r.get("mom_pct"), 1, True) if r.get("mom_pct") is not None else "",
-        }
-        for r in region
-    ]
-    br = [
-        {
-            "key": r["key"],
-            "value": r["value"],
-            "label": f"{lab(r['value'])} · {fmt.pct(r['share_pct'])}",
-            "mom": r.get("mom_pct"),
-            "mom_label": fmt.pct(r.get("mom_pct"), 1, True) if r.get("mom_pct") is not None else "",
-        }
-        for r in brand
-    ]
-    cells = [
-        {"region": c["region"], "brand": c["brand"], "value": c["value"], "label": fmt._dec(c["value"] / 1e6, 1), "full": fmt.rupiah(c["value"])}
-        for c in heat["cells"]
-        if c["value"] > 0
-    ]
-    cum = [
-        {
-            "month": fmt.month_label(s["month"]).split()[0],
-            "month_long": fmt.month_label(s["month"], long=True).split()[0],
-            "values": s["values"],
-            "total_label": lab(s["total"]),
-        }
-        for s in (cumulative or [])
-    ]
-    months = [r["prev_month"] for r in region[:1] if r.get("prev_month")] + [r["curr_month"] for r in region[:1] if r.get("curr_month")]
-    return {
-        "period": period,
-        "months": [fmt.month_label(m).split()[0] for m in months],
-        "region": reg,
-        "brand": br,
-        "heat": {"regions": heat["regions"], "brands": heat["brands"], "cells": cells},
-        "region_totals": {r["key"]: lab(r["value"]) for r in region},
-        "brand_totals": {r["key"]: lab(r["value"]) for r in brand},
-        "focus": sankey_focus(region),
-        "cumulative": cum,
-    }
+
+def bars(rows: list[dict], key: str = "curr") -> dict:
+    """Bar length (percent of the largest value) for each row, plus the previous-month tick."""
+    top = max([r[key] for r in rows] + [r.get("prev", 0) for r in rows] + [0]) or 1
+    return {r["key"]: {"w": round(max(r[key], 0) / top * 100, 1), "prev": round(max(r.get("prev", 0), 0) / top * 100, 1)} for r in rows}
+
+
+GEO = Path(__file__).parent / "static" / "geo" / "indonesia-west.json"
+# Approximate centre of each sales region (lon, lat). An unknown region gets no circle.
+REGION_LONLAT = {
+    "Sumatera": (101.4, -0.4),
+    "Jabodetabek": (106.8, -6.2),
+    "Jawa Barat": (107.7, -7.0),
+    "Jawa Tengah": (110.3, -7.2),
+    "Jawa Timur": (112.6, -7.7),
+    "Kalimantan": (113.9, -0.9),
+}
+REGION_SHORT = {"Jabodetabek": "Jabo", "Jawa Barat": "Jabar", "Jawa Tengah": "Jateng", "Jawa Timur": "Jatim"}
+
+
+@cache
+def _geo() -> dict:
+    return json.loads(GEO.read_text(encoding="utf-8"))
+
+
+def bubble_map(regions: list[dict], rmax: float = 19.0) -> dict:
+    """Circles at each region's position: area = current-month sales, color and arrow = change.
+
+    Java's four regions sit close together, so their labels drop into a row of slots under the
+    island with a leader line; the others are labelled beside their circle.
+    """
+    g = _geo()
+    lon0, _, _, lat1 = g["bbox"]
+    k = g["scale"]
+    top = max([r["curr"] for r in regions] + [1])
+    pts = []
+    for r in regions:
+        if r["key"] not in REGION_LONLAT:
+            continue
+        lon, lat = REGION_LONLAT[r["key"]]
+        pts.append({**r, "x": round((lon - lon0) * k, 1), "y": round((lat1 - lat) * k, 1), "r": round(rmax * (max(r["curr"], 0) / top) ** 0.5, 1), "java": lat < -5})
+    java = sorted((p for p in pts if p["java"]), key=lambda p: p["x"])
+    label_y = g["height"] + 16
+    for i, p in enumerate(java):
+        p.update(lx=round(g["width"] * (0.14 + 0.72 * (i + 0.5) / len(java)), 1), ly=label_y, anchor="middle")
+    for p in pts:
+        if not p["java"]:
+            p.update(lx=p["x"], ly=round(p["y"] + max(p["r"], 3) + 10, 1), anchor="middle")
+        p["short"] = REGION_SHORT.get(p["key"], p["key"])
+        p["dlabel"] = fmt.jt_parts(p["change"], signed=True)
+    return {"width": g["width"], "height": g["height"] + (34 if java else 4), "path": g["path"], "points": pts}
+
+
+def day_tiles(ym: str) -> list[bool]:
+    """One entry per calendar day of the month: True on a trading day (Monday to Saturday)."""
+    import calendar
+
+    y, m = (int(x) for x in ym.split("-"))
+    return [calendar.weekday(y, m, d) != 6 for d in range(1, calendar.monthrange(y, m)[1] + 1)]
