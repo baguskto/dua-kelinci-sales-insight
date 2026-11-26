@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Masuk - Penjualan Dua Kelinci{% endblock %}
+{% block title %}Sign in - Dua Kelinci Sales{% endblock %}
 {% block content %}
 <section class="card narrow">
-  <h1>Masuk</h1>
+  <h1>Sign in</h1>
   {% if error %}<p class="alert error" role="alert">{{ error }}</p>{% endif %}
   {% if auth_mode == 'oidc' %}
-    <p>Masuk dengan akun Microsoft 365 kantor.</p>
-    <p><a class="button" href="/auth/entra/login">Masuk dengan Microsoft</a></p>
+    <p>Sign in with your Microsoft 365 work account.</p>
+    <p><a class="btn-primary" href="/auth/entra/login">Microsoft sign-in</a></p>
   {% else %}
   <form method="post" action="/login" class="stack">
     <input type="hidden" name="csrf_token" value="{{ csrf }}">
-    <label>Nama pengguna <input name="username" autocomplete="username" required maxlength="80"></label>
-    <label>Kata sandi <input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
-    <button type="submit">Masuk</button>
+    <label>Username <input name="username" autocomplete="username" required maxlength="80"></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+    <button type="submit" class="btn-primary">Sign in</button>
   </form>
   {% endif %}
 </section>

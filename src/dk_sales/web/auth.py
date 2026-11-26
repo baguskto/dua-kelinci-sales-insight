@@ -86,7 +86,7 @@ class User:
         return cls(**{k: d[k] for k in ("username", "display_name", "roles", "regions", "brands", "auth_source") if k in d})
 
 
-DEV_USER = User(username="lokal", display_name="Pengguna lokal", roles=["admin", "head_of_sales"], auth_source="dev")
+DEV_USER = User(username="lokal", display_name="Local user", roles=["admin", "head_of_sales"], auth_source="dev")
 
 
 # ---------------------------------------------------------------------------

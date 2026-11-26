@@ -1,4 +1,4 @@
-"""Small presentation helpers: SVG geometry, greeting, visit task text, calendar file, chart payloads."""
+"""Small presentation helpers: SVG chart geometry, greeting, visit task text, calendar file (English UI)."""
 
 from __future__ import annotations
 
@@ -15,35 +15,38 @@ WIB = timezone(timedelta(hours=7), "WIB")
 _ROLE_ORDER = ("head_of_sales", "head_of_region", "brand_manager", "admin")
 
 
-def sparkline(values: list[float], width: int = 120, height: int = 28, pad: int = 2) -> dict:
-    """Polyline points for a sparkline plus the last point, as plain numbers for SVG attributes."""
-    if not values:
-        return {"points": "", "last": None, "width": width, "height": height}
-    lo, hi = min(values), max(values)
-    span = (hi - lo) or 1
-    n = len(values)
-    pts = []
-    for i, v in enumerate(values):
-        x = pad + (width - 2 * pad) * (i / (n - 1) if n > 1 else 0.5)
-        y = pad + (height - 2 * pad) * (1 - (v - lo) / span)
-        pts.append((round(x, 1), round(y, 1)))
-    line = " ".join(f"{x},{y}" for x, y in pts)
-    area = f"{line} {pts[-1][0]},{height} {pts[0][0]},{height}"
-    return {"points": line, "area": area, "last": pts[-1], "width": width, "height": height}
-
-
-def spark_pair(prev: list[float], curr: list[float], width: int = 120, height: int = 32, pad: int = 2) -> dict:
-    """Two running-total lines on one scale (previous month grey, current month ink) for a KPI card."""
+def line_chart(prev: list[float], curr: list[float], prev_label: str, curr_label: str, width: int = 240, height: int = 104) -> dict:
+    """Cumulative net sales by day: geometry for the two lines, the band under the current month, sparse
+    day gridlines, and the highlight point (the day the current month passes the previous one for
+    good, else its last day). ``points`` feeds the hover/focus tooltip in app.js."""
+    left, right, top, bottom = 4.0, width - 4.0, 10.0, height - 18.0
     n = max(len(prev), len(curr), 2)
     hi = max(prev + curr + [1])
 
-    def pts(vals: list[float]) -> str:
-        return " ".join(f"{round(pad + (width - 2 * pad) * i / (n - 1), 1)},{round(height - pad - (height - 2 * pad) * v / hi, 1)}" for i, v in enumerate(vals))
+    def xy(i: int, v: float) -> tuple[float, float]:
+        return round(left + (right - left) * i / (n - 1), 1), round(bottom - (bottom - top) * v / hi, 1)
 
-    c = pts(curr)
-    last = c.split()[-1] if c else f"{pad},{height - pad}"
-    area = f"{c} {last.split(',')[0]},{height} {pad},{height}" if c else ""
-    return {"prev": pts(prev), "curr": c, "area": area, "last": [float(v) for v in last.split(",")], "width": width, "height": height}
+    def line(vals: list[float]) -> str:
+        return " ".join("{},{}".format(*xy(i, v)) for i, v in enumerate(vals))
+
+    pv = [prev[min(i, len(prev) - 1)] for i in range(len(curr))] if prev else []
+    hl = len(curr) - 1
+    if pv and curr[-1] >= pv[-1]:
+        behind = [i for i, (c, p) in enumerate(zip(curr, pv, strict=True)) if c < p]
+        if behind and behind[-1] + 1 < len(curr):
+            hl = behind[-1] + 1
+    c = line(curr)
+    band = f"{c} {xy(len(curr) - 1, 0)[0]},{bottom} {left},{bottom}" if curr else ""
+    days = sorted({1, 10, 20, n})
+    points = []
+    for i, v in enumerate(curr):
+        x, y = xy(i, v)
+        points.append({"x": x, "y": y, "day": i + 1, "curr": fmt.rpm(v), "prev": fmt.rpm(pv[i]) if pv else ""})
+    return {
+        "width": width, "height": height, "bottom": bottom, "prev": line(prev), "curr": c, "band": band,
+        "grid": [{"x": xy(d - 1, 0)[0], "day": d} for d in days], "hl": points[hl] if points else None,
+        "points": points, "prev_label": prev_label, "curr_label": curr_label,
+    }
 
 
 def bullet(value: float, median: float, width: int = 220) -> dict:
@@ -56,75 +59,60 @@ def bullet(value: float, median: float, width: int = 220) -> dict:
     }
 
 
-def bar_pct(value: float, top: float) -> float:
-    """Bar length in percent of the largest value, for SVG bars with a 0..100 viewBox."""
-    return round(max(value, 0) / top * 100, 1) if top > 0 else 0.0
-
-
 def greeting(user, now: datetime) -> str:
-    """'Selamat pagi, Head of Sales' for a signed-in role; a neutral title in local mode."""
+    """'Good morning, Head of Sales' for a signed-in role; a neutral title in local mode."""
     from dk_sales.web.auth import ROLE_LABELS
 
     if user is None or user.auth_source == "dev":
-        return "Penjualan Dua Kelinci"
+        return "Dua Kelinci Sales"
     h = now.astimezone(WIB).hour
-    part = "pagi" if 4 <= h < 11 else "siang" if 11 <= h < 15 else "sore" if 15 <= h < 18 else "malam"
+    part = "morning" if 4 <= h < 12 else "afternoon" if 12 <= h < 18 else "evening"
     role = next((r for r in _ROLE_ORDER if r in user.roles), None)
-    return f"Selamat {part}, {ROLE_LABELS[role] if role else user.display_name}"
+    return f"Good {part}, {ROLE_LABELS[role] if role else user.display_name}"
 
 
-def last_month_value(w) -> tuple[str, int] | None:
-    """Short label and value of the outlet's last month in the data, e.g. ('Okt', 372000)."""
-    if not w.month_values:
-        return None
-    m = sorted(w.month_values)[-1]
-    return fmt.month_label(m).split()[0], w.month_values[m]
+_LATE = "di luar urutan"
+_SAME_NAME = re.compile(r"^Nama sama dengan (.+) di cabang (.+?):")
+_RETURN = re.compile(r"^Retur (\d+) karton (.+) \((\w+)\) melebihi pembelian (\d+) karton")
+_OFFER = re.compile(r"Tawarkan SKU yang laku di .+? lain: (.+)\.$")
 
 
-def reason_line(w) -> str:
-    """One-line reason for a weak outlet; the full reasoning stays in the visit task and the outlet page."""
-    parts = [f"{fmt.pct(w.index_pct, 0)} dari median {w.outlet_type}"]
+def note_en(note: str) -> str:
+    """English text for a data-quality note from analytics.outlet_notes (computed in Indonesian for the chat)."""
+    if _LATE in note:
+        return "Invoice number out of sequence: check the entry (new outlet or late order?)."
+    if m := _SAME_NAME.match(note):
+        return f"Same name as {m[1]} in branch {m[2]}: possible duplicate master record, check with admin."
+    if m := _RETURN.match(note):
+        return f"Return of {m[1]} cartons {m[2]} ({m[3]}) exceeds purchases of {m[4]} cartons in this period: confirm with the team."
+    return note
+
+
+def action_en(w) -> str:
+    """English version of the suggested action for a weak outlet (same rules as analytics._action)."""
+    m = _OFFER.search(w.action)
+    offer = f" Offer SKUs that sell at other {w.outlet_type} outlets: {m[1]}." if m else ""
+    median = f"{w.peer_median_invoices:.1f}".rstrip("0").rstrip(".")
     if w.invoices == 0:
-        parts.append("belum ada order")
-    elif w.invoices <= max(1, w.peer_median_invoices * 0.5):
-        parts.append(f"order jarang ({w.invoices} vs median {fmt._dec(w.peer_median_invoices, 1)})")
-    elif w.mom_pct is not None and w.mom_pct <= -30:
-        parts.append(f"bulan terakhir turun {fmt.pct(abs(w.mom_pct), 0)}")
-    else:
-        parts.append("nilai per order kecil")
-    return "Alasan: " + ", ".join(parts) + "."
-
-
-_DIAGNOSIS = re.compile(r"^(Order jarang \([^)]*\)|Order \w+ turun [^.]*|Nilai per order kecil|Belum ada order di periode ini)\.\s*")
-
-
-def suggestion(w) -> str:
-    """The action without its opening diagnosis, which the reason line already states."""
-    rest = _DIAGNOSIS.sub("", w.action, count=1)
-    return rest or w.action
-
-
-def note_label(note: str) -> str:
-    """Short chip text for a data-quality note; the full note is shown next to it on request."""
-    if "di luar urutan" in note:
-        return "Invoice di luar urutan"
-    if note.startswith("Nama sama dengan"):
-        return note.split(" di cabang")[0]
-    if note.startswith("Retur"):
-        return "Retur melebihi pembelian"
-    return note.split(":")[0]
+        return f"No orders in this period. Confirm the outlet is still active and on the visit route.{offer}"
+    if w.invoices <= max(1, w.peer_median_invoices * 0.5):
+        return f"Rare orders ({w.invoices}, {w.outlet_type} median {median}). Schedule regular visits and check the outlet is still active.{offer}"
+    if w.mom_pct is not None and w.mom_pct <= -30:
+        last = fmt.mon(sorted(w.month_values)[-1])
+        return f"Orders in {last} fell {abs(w.mom_pct):.0f}%. Visit this week and ask why (stock, competitor price, payment).{offer}"
+    return f"Small order value.{offer or ' Offer a mixed-carton bundle.'}"
 
 
 def visit_task(w, period_label: str) -> str:
     """Short visit task a manager can paste into a chat with the salesman."""
     lines = [
-        f"Tugas kunjungan: {w.outlet_name} ({w.outlet_id}), {w.outlet_type}, {w.branch}, {w.region}.",
-        f"{period_label}: net {fmt.rupiah_short(w.net_sales_idr)}, {fmt.pct(w.index_pct, 0)} dari median {w.outlet_type} "
-        f"({fmt.rupiah_short(w.peer_median_idr)}); {w.invoices} order.",
-        f"Saran: {w.action}",
+        f"Visit task: {w.outlet_name} ({w.outlet_id}), {w.outlet_type}, {w.branch}, {fmt.region(w.region)}.",
+        f"{period_label}: net {fmt.rpm(w.net_sales_idr)}, {w.index_pct:.0f}% of the {w.outlet_type} median "
+        f"({fmt.rpm(w.peer_median_idr)}); {w.invoices} orders.",
+        f"Suggestion: {action_en(w)}",
     ]
     if w.notes:
-        lines.append("Cek data: " + " ".join(w.notes))
+        lines.append("Check data: " + " ".join(note_en(n) for n in w.notes))
     return "\n".join(lines)
 
 
@@ -157,11 +145,11 @@ def _ics_fold(line: str) -> str:
 
 def visit_ics(w, period_label: str, day: date, stamp: datetime) -> str:
     """All-day calendar event for a visit to a weak outlet, ready to import in any calendar app."""
-    desc = visit_task(w, period_label) + "\nJam kunjungan bisa diubah di kalender sesuai rute."
+    desc = visit_task(w, period_label) + "\nMove the visit time in your calendar to fit the route."
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Penjualan Dua Kelinci//Kunjungan outlet//ID",
+        "PRODID:-//Dua Kelinci Sales//Outlet visit//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
@@ -169,10 +157,10 @@ def visit_ics(w, period_label: str, day: date, stamp: datetime) -> str:
         f"DTSTAMP:{stamp.astimezone(UTC):%Y%m%dT%H%M%SZ}",
         f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
         f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
-        "SUMMARY:" + _ics_text(f"Kunjungi {w.outlet_name} ({w.outlet_id})"),
-        "LOCATION:" + _ics_text(f"{w.branch}, {w.region}"),
+        "SUMMARY:" + _ics_text(f"Visit {w.outlet_name} ({w.outlet_id})"),
+        "LOCATION:" + _ics_text(f"{w.branch}, {fmt.region(w.region)}"),
         "DESCRIPTION:" + _ics_text(desc),
-        "CATEGORIES:Kunjungan outlet",
+        "CATEGORIES:Outlet visit",
         "TRANSP:TRANSPARENT",
         "END:VEVENT",
         "END:VCALENDAR",
@@ -195,27 +183,12 @@ def waterfall(st: dict) -> list[dict]:
     def x(v: float) -> float:
         return round((v - axis_lo) / (axis_hi - axis_lo) * 100, 2)
 
-    rows = [{"kind": "total", "label": fmt.month_label(st["prev_month"]).split()[0], "value": st["prev"], "x0": 0.0, "x1": x(st["prev"]), "next": x(st["prev"])}]
+    rows = [{"kind": "total", "label": fmt.mon(st["prev_month"]), "value": st["prev"], "x0": 0.0, "x1": x(st["prev"]), "next": x(st["prev"])}]
     for s in steps:
         a, b = sorted((x(s["start"]), x(s["end"])))
         rows.append({"kind": "step", **s, "x0": a, "x1": max(b, a + 0.4), "from": x(s["start"]), "next": x(s["end"]), "up": s["change"] >= 0})
-    rows.append({"kind": "total", "label": fmt.month_label(st["curr_month"]).split()[0], "value": st["curr"], "x0": 0.0, "x1": x(st["curr"]), "from": x(st["curr"]), "end": True})
+    rows.append({"kind": "total", "label": fmt.mon(st["curr_month"]), "value": st["curr"], "x0": 0.0, "x1": x(st["curr"]), "from": x(st["curr"]), "end": True})
     return rows
-
-
-def heat_bucket(pct: float | None) -> str:
-    """Diverging color class for a region x brand change; the cell also shows the arrow and the number."""
-    if pct is None or pct == 0:
-        return "z"
-    a = abs(pct)
-    level = 3 if a >= 20 else 2 if a >= 8 else 1
-    return f"{'p' if pct > 0 else 'n'}{level}"
-
-
-def bars(rows: list[dict], key: str = "curr") -> dict:
-    """Bar length (percent of the largest value) for each row, plus the previous-month tick."""
-    top = max([r[key] for r in rows] + [r.get("prev", 0) for r in rows] + [0]) or 1
-    return {r["key"]: {"w": round(max(r[key], 0) / top * 100, 1), "prev": round(max(r.get("prev", 0), 0) / top * 100, 1)} for r in rows}
 
 
 GEO = Path(__file__).parent / "static" / "geo" / "indonesia-west.json"
@@ -228,7 +201,6 @@ REGION_LONLAT = {
     "Jawa Timur": (112.6, -7.7),
     "Kalimantan": (113.9, -0.9),
 }
-REGION_SHORT = {"Jabodetabek": "Jabo", "Jawa Barat": "Jabar", "Jawa Tengah": "Jateng", "Jawa Timur": "Jatim"}
 
 
 @cache
@@ -236,7 +208,7 @@ def _geo() -> dict:
     return json.loads(GEO.read_text(encoding="utf-8"))
 
 
-def bubble_map(regions: list[dict], rmax: float = 19.0) -> dict:
+def bubble_map(regions: list[dict], rmax: float = 15.0) -> dict:
     """Circles at each region's position: area = current-month sales, color and arrow = change.
 
     Java's four regions sit close together, so their labels drop into a row of slots under the
@@ -253,14 +225,23 @@ def bubble_map(regions: list[dict], rmax: float = 19.0) -> dict:
         lon, lat = REGION_LONLAT[r["key"]]
         pts.append({**r, "x": round((lon - lon0) * k, 1), "y": round((lat1 - lat) * k, 1), "r": round(rmax * (max(r["curr"], 0) / top) ** 0.5, 1), "java": lat < -5})
     java = sorted((p for p in pts if p["java"]), key=lambda p: p["x"])
+    # Java's regions sit closer together than their circles are wide: nudge them apart along the
+    # island (left to right, 3 units apart), then re-centre the row on the original positions.
+    if java:
+        centre = sum(p["x"] for p in java) / len(java)
+        for a, b in zip(java, java[1:], strict=False):
+            b["x"] = max(b["x"], round(a["x"] + max(a["r"], 3) + max(b["r"], 3) + 3, 1))
+        shift = centre - sum(p["x"] for p in java) / len(java)
+        for p in java:
+            p["x"] = round(p["x"] + shift, 1)
     label_y = g["height"] + 16
     for i, p in enumerate(java):
         p.update(lx=round(g["width"] * (0.14 + 0.72 * (i + 0.5) / len(java)), 1), ly=label_y, anchor="middle")
     for p in pts:
         if not p["java"]:
             p.update(lx=p["x"], ly=round(p["y"] + max(p["r"], 3) + 10, 1), anchor="middle")
-        p["short"] = REGION_SHORT.get(p["key"], p["key"])
-        p["dlabel"] = fmt.jt_parts(p["change"], signed=True)
+        p["short"] = fmt.region_short(p["key"])
+        p["dlabel"] = fmt.rpm_parts(p["change"], signed=True)
     return {"width": g["width"], "height": g["height"] + (34 if java else 4), "path": g["path"], "points": pts}
 
 

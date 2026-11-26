@@ -20,10 +20,12 @@ _UNITS = {
     "rb": 1e3,
     "k": 1e3,
 }
+# English text (the dashboard and the Telegram summary): M = million, B = billion.
+_UNITS_EN = {**_UNITS, "m": 1e6, "b": 1e9, "million": 1e6, "billion": 1e9}
 NUMBER_RE = re.compile(
     r"(?:(?<=Rp)|(?<=Rp\s)|(?<![\w.,]))"  # a number glued to letters (OUT1003, INV500813) is an id, not a number
     r"(?P<num>[-+−]?\d+(?:[.,]\d+)*)"
-    r"(?P<unit>\s*(?:%|persen\b|miliar\b|milyar\b|juta\b|jt\b|ribu\b|rb\b|[mMkK]\b))?"
+    r"(?P<unit>\s*(?:%|persen\b|miliar\b|milyar\b|million\b|billion\b|juta\b|jt\b|ribu\b|rb\b|[mMkKbB]\b))?"
     r"(?![\w])"
 )
 
@@ -68,7 +70,8 @@ def parse_number(num: str) -> tuple[float, int]:
 ID_RE = re.compile(r"\b(?![Rr][Pp]\d)[A-Za-z]{2,5}-?\d+\b")
 
 
-def find_numbers(text: str) -> list[FoundNumber]:
+def find_numbers(text: str, lang: str = "id") -> list[FoundNumber]:
+    units = _UNITS_EN if lang == "en" else _UNITS
     text = ID_RE.sub(" ", text)
     out = []
     for m in NUMBER_RE.finditer(text):
@@ -76,9 +79,9 @@ def find_numbers(text: str) -> list[FoundNumber]:
         unit = raw_unit.lower()
         value, decimals = parse_number(m.group("num"))
         is_pct = unit in ("%", "persen")
-        mult = 1.0 if is_pct or not unit else _UNITS.get(unit, 1.0)
+        mult = 1.0 if is_pct or not unit else units.get(unit, 1.0)
         # Single letter units only count after "Rp" context; "5 M" without Rp is ambiguous, keep as plain.
-        if unit in ("m", "k") and "Rp" not in text[max(0, m.start() - 3) : m.start()]:
+        if unit in ("m", "k", "b") and "Rp" not in text[max(0, m.start() - 3) : m.start()]:
             mult = 1.0
         precision = (10**-decimals) * mult
         out.append(FoundNumber(m.group(0).strip(), value * mult, precision / 2 + 1e-9, is_pct))
@@ -92,12 +95,12 @@ class GuardResult:
     unmatched: list[str]
 
 
-def check(text: str, facts: list[float], pct_facts: list[float] | None = None) -> GuardResult:
+def check(text: str, facts: list[float], pct_facts: list[float] | None = None, lang: str = "id") -> GuardResult:
     """Every number in text must be within display rounding of some fact (sign ignored)."""
     vals = [abs(float(f)) for f in facts]
     pcts = [abs(float(f)) for f in (pct_facts or [])]
     unmatched = []
-    found = find_numbers(text)
+    found = find_numbers(text, lang)
     for n in found:
         pool = pcts if n.is_pct else vals
         if not any(abs(abs(n.value) - f) <= n.tolerance for f in pool):

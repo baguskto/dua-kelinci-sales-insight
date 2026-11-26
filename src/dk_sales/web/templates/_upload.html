@@ -1,8 +1,8 @@
 <form method="post" action="/upload" enctype="multipart/form-data" class="row upload" id="upload-form">
   <input type="hidden" name="csrf_token" value="{{ csrf }}">
-  <label class="sr-only" for="upload-file">File penjualan</label>
+  <label class="sr-only" for="upload-file">Sales file</label>
   <input id="upload-file" type="file" name="file" accept=".csv,.xlsx,.txt" required>
-  <button type="submit">Unggah dan periksa</button>
+  <button type="submit">Upload</button>
   <progress id="upload-progress" max="100" value="0" hidden></progress>
-  <span id="upload-status" class="small" role="status" aria-live="polite">CSV atau .xlsx, maksimal {{ settings.max_upload_mb }} MB dan {{ '{:,}'.format(settings.max_upload_rows).replace(',', '.') }} baris. Diperiksa dengan kontrak dan aturan yang sama.</span>
+  <span id="upload-status" class="small" role="status" aria-live="polite">CSV or .xlsx, up to {{ settings.max_upload_mb }} MB and {{ fmt.num(settings.max_upload_rows) }} rows. Checked with the same contract and rules.</span>
 </form>

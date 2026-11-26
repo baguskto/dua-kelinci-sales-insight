@@ -281,3 +281,43 @@ ACTION_ID = {
     "quarantined": "dikarantina",
     "none": "dicatat",
 }
+
+# English labels for the dashboard (the UI is in English; the audit documents stay Indonesian).
+SEVERITY_EN = {"high": "high", "medium": "medium", "low": "low", "info": "info"}
+ACTION_EN = {
+    "rejected": "rejected",
+    "fixed": "fixed",
+    "inferred": "filled (inferred)",
+    "flagged": "flagged",
+    "quarantined": "quarantined",
+    "none": "logged",
+}
+TITLE_EN = {
+    "DQ-01": "Column schema: 15 required, known column names",
+    "DQ-02": "Value format: ISO date, whole numbers, invoice number, required fields",
+    "DQ-03": "Non-standard region spelling (case, abbreviations)",
+    "DQ-04": "Leading/trailing spaces and control characters",
+    "DQ-05": "Empty salesman",
+    "DQ-06": "Exact duplicate rows within one invoice",
+    "DQ-07": "Return rows (RTR document, negative qty and value)",
+    "DQ-08": "Return without enough purchases in the data period",
+    "DQ-09": "Invoice number out of sequence",
+    "DQ-10": "Outlet that only appears on out-of-sequence invoices",
+    "DQ-11": "Sale on a non-trading day (Sunday or public holiday)",
+    "DQ-12": "Same outlet name, different outlet_id, same branch",
+    "DQ-13": "Same outlet name, different outlet_id, different branch",
+    "DQ-14": "gross_sales_idr = qty_carton x price_per_carton_idr",
+    "DQ-15": "net_sales_idr = gross_sales_idr - discount_idr",
+    "DQ-16": "Discount pattern: 0, 2, 3 or 5 percent of gross, rounded to Rp100",
+    "DQ-17": "One price per SKU",
+    "DQ-18": "One brand per SKU",
+    "DQ-19": "Stable outlet attributes (name, type, branch, region)",
+    "DQ-20": "One region per branch",
+    "DQ-21": "Salesman in one branch only",
+    "DQ-22": "Same invoice header on every row",
+    "DQ-23": "No repeated SKU within one invoice",
+    "DQ-24": "Qty sign matches the document type",
+    "DQ-25": "More than one sales invoice per outlet per day",
+    "DQ-26": "Trading day (Monday to Saturday) without sales",
+    "DQ-27": "Date outside the expected period",
+}

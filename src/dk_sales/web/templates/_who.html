@@ -2,7 +2,7 @@
 <div class="who">
   <span class="who-name" title="{{ user.roles|join(', ') }}">{{ user.display_name }}</span>
   {% if user.auth_source != 'dev' %}
-  <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="link" type="submit">Keluar</button></form>
+  <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="link" type="submit">Sign out</button></form>
   {% endif %}
 </div>
 {% endif %}

@@ -1,22 +1,22 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf or '' }}">
 <meta name="theme-color" content="#161616">
-<title>{% block title %}Penjualan Dua Kelinci{% endblock %}</title>
+<title>{% block title %}Dua Kelinci Sales{% endblock %}</title>
 <link rel="preload" href="/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/app.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <script src="/static/app.js" defer></script>
 </head>
 <body class="{% block bodyclass %}simple{% endblock %}">
-<a class="skip" href="#main">Langsung ke isi</a>
+<a class="skip" href="#main">Skip to content</a>
 {% block body %}
 <header class="simplebar">
-  <a class="logo-dot" href="/" aria-label="Penjualan Dua Kelinci, kembali ke dashboard"><img src="/static/img/logo-white.png" alt="" width="34" height="21"></a>
-  <strong class="simplebar-title">Penjualan Dua Kelinci</strong>
+  <a class="logo-dot" href="/" aria-label="Dua Kelinci Sales, back to the dashboard"><img src="/static/img/logo-white.png" alt="" width="34" height="21"></a>
+  <strong class="simplebar-title">Dua Kelinci Sales</strong>
   {% include "_who.html" %}
 </header>
 <main id="main" class="simple-main">
