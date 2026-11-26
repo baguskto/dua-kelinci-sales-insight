@@ -64,6 +64,13 @@ Dua perintah untuk menjalankan (pip install, python app.py), offline tanpa kunci
 - Satu keluarga huruf, Plus Jakarta Sans, termasuk teks di dalam SVG.
 - Gerak: hanya hover, focus dan tooltip (MOTION 1). Dashboard adalah alat kerja harian; animasi masuk hanya menunda angka.
 
+## Etalase: shot, animasi, GitHub Pages
+
+- Shot 2x (`docs/img/shot-2x-1920x1600.png`, 348 KB): 1440x900 pada skala 2, dipotong 1920x1600 di tiga kolom pertama mulai dari baris card pertama. Di sana grafik paling padat: garis kumulatif dengan tooltip, pertumbuhan tanpa outlet teratas, tick hari kerja, jembatan region, kartu Grosir Lancar Jaya dan tick meter 5 outlet terlemah. Peta ada di kolom 4 dan 5, jadi tidak muat dalam satu potongan dengan jembatan. Dibuat oleh `scripts/showcase/shot.py`.
+- Dua animasi (`scripts/showcase/motion.py`): "cards-stagger" (card muncul bergantian, 90 ms, naik 8 px) dan "isometric-lift" (dashboard dari bidang isometrik berdiri miring, lalu empat card cerita terangkat). GIF 1200 px 15 fps: 1,3 MB dan 4,1 MB di `docs/img/`; MP4 H.264: 0,2 MB dan 0,5 MB di `site/media/`. Frame dibuat deterministik: semua animasi dijeda lalu `currentTime` dimajukan per frame pada 30 fps.
+- Animasi itu lapisan etalase saja. CSS dan JS-nya disuntikkan oleh skrip capture; aplikasinya tetap MOTION 1 (hanya hover, focus, tooltip) karena dashboard adalah alat kerja harian dan angka harus langsung terlihat.
+- GitHub Pages (`.github/workflows/pages.yml`, dari `main`): halaman etalase di `site/`, shot, dua video (autoplay tanpa suara, berhenti dan tampil poster bila pengguna memilih reduced motion), dan snapshot statis dashboard yang diekspor dari aplikasi (`scripts/showcase/build_site.py`). Di snapshot, kontrol yang butuh server (periode, filter, chat, unggah, Telegram, cetak, .ics, CSV, tautan) dinonaktifkan atau menjadi teks biasa dan diberi label; laci, tooltip dan "Copy task" tetap jalan.
+
 ## Cara memeriksa
 
 ```

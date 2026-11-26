@@ -4,9 +4,11 @@
 
 Dashboard satu layar untuk Commercial Director dan Head of Sales: berapa penjualan berubah bulan ini, apakah perubahannya nyata (per hari kerja dan tanpa outlet penyumbang terbesar), dari region dan brand mana, 5 outlet terlemah dibanding outlet sejenis, dan satu paragraf ringkasan yang siap dikirim ke Telegram. Data mentah dibersihkan dengan 27 aturan kualitas data yang bisa diperiksa, dan ada "Ask the data" yang menjawab hanya dari angka di file. Tampilan berbahasa Inggris; dokumen berbahasa Indonesia.
 
-![Dashboard desktop](docs/img/dashboard-desktop.png)
+![Detail dashboard pada skala 2x: grafik garis penjualan neto kumulatif dengan tooltip, pertumbuhan tanpa outlet teratas, hari kerja, jembatan September ke Oktober per region, kartu Grosir Lancar Jaya dan 5 outlet terlemah](docs/img/shot-2x-1920x1600.png)
 
-<img src="docs/img/dashboard-mobile.png" alt="Dashboard di ponsel" width="260"> <img src="docs/img/dashboard-mobile-outlet.png" alt="5 outlet terlemah di ponsel" width="260"> <img src="docs/img/dashboard-mobile-telegram.png" alt="Ringkasan Telegram di ponsel" width="260">
+<img src="docs/img/motion-cards-stagger.gif" alt="Animasi: 12 kartu dashboard muncul satu per satu" width="49%"> <img src="docs/img/motion-isometric-lift.gif" alt="Animasi: dashboard dalam tampilan isometrik, empat kartu cerita utama terangkat" width="49%">
+
+Animasi hanya untuk etalase (dibuat oleh `scripts/showcase/motion.py`); aplikasinya sendiri tanpa animasi masuk. Etalase online: https://baguskto.github.io/dua-kelinci-sales-insight/
 
 ## Menjalankan (Python 3.11 atau lebih baru, macOS atau Windows)
 
@@ -20,6 +22,12 @@ Buka http://127.0.0.1:8000. Tidak perlu akun, kunci API, atau internet setelah i
 Dengan [uv](https://docs.astral.sh/uv/): `uv run app.py`. Dengan Docker: `docker compose up` lalu buka http://127.0.0.1:8000.
 
 Start pertama sekitar 12 detik karena Python mengompilasi library sekali; start berikutnya sekitar 2 detik.
+
+## Tampilan
+
+![Dashboard desktop](docs/img/dashboard-desktop.png)
+
+<img src="docs/img/dashboard-mobile.png" alt="Dashboard di ponsel" width="260"> <img src="docs/img/dashboard-mobile-outlet.png" alt="5 outlet terlemah di ponsel" width="260"> <img src="docs/img/dashboard-mobile-telegram.png" alt="Ringkasan Telegram di ponsel" width="260">
 
 ## Yang perlu diketahui
 
