@@ -8,7 +8,7 @@ Dashboard satu layar untuk Commercial Director dan Head of Sales: berapa penjual
 
 <img src="docs/img/motion-cards-stagger.gif" alt="Animasi: 12 kartu dashboard muncul satu per satu" width="49%"> <img src="docs/img/motion-isometric-lift.gif" alt="Animasi: dashboard dalam tampilan isometrik, empat kartu cerita utama terangkat" width="49%">
 
-Animasi hanya untuk etalase (dibuat oleh `scripts/showcase/motion.py`); aplikasinya sendiri tanpa animasi masuk. Etalase online: https://baguskto.github.io/dua-kelinci-sales-insight/
+Animasi hanya untuk README (dibuat oleh `scripts/showcase/motion.py`); aplikasinya sendiri tanpa animasi masuk. Dashboard online (snapshot statis, satu halaman): https://baguskto.github.io/dua-kelinci-sales-insight/
 
 ## Menjalankan (Python 3.11 atau lebih baru, macOS atau Windows)
 
