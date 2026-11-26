@@ -28,7 +28,7 @@ from dk_sales.chat.engine import ChatEngine
 from dk_sales.clean import ContractError
 from dk_sales.io import InputError
 from dk_sales.rules import ACTION_ID, RULES, SEVERITY_ID
-from dk_sales.web import auth, views
+from dk_sales.web import auth, icons, views
 from dk_sales.web.dataset import DatasetStore
 from dk_sales.web.security import BodyLimitMiddleware, RateLimiter, SecurityHeadersMiddleware, csrf_ok, csv_safe, new_csrf_token
 from dk_sales.web.settings import Settings, from_env
@@ -53,7 +53,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
     throttle = auth.LoginThrottle()
     local_users = auth.load_local_users(settings.local_users_file) if settings.auth_mode == "local" and settings.local_users_file else {}
     templates = Jinja2Templates(directory=str(HERE / "templates"))
-    templates.env.globals.update(fmt=fmt, an=an, views=views, SEVERITY_ID=SEVERITY_ID, ACTION_ID=ACTION_ID, version=__version__)
+    templates.env.globals.update(fmt=fmt, an=an, views=views, icon=icons.icon, TYPE_ICON=icons.OUTLET_TYPE_ICON, SEVERITY_ID=SEVERITY_ID, ACTION_ID=ACTION_ID, version=__version__)
     summary_cache: dict[tuple, summ.Summary] = {}
     recon_cache: dict = {}
 
@@ -332,50 +332,34 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         if fact.empty:
             return ctx
         k = an.kpis(fact, period)
-        week = an.weekly(fact, period)
         region = an.breakdown(fact, "region", period)
         brand = an.breakdown(fact, "brand", period)
-        heat = an.heatmap(fact, period)
         weak = an.weakest_outlets(fact, ds.dim_outlet, period, 5)
         label = "" if scope.regions is None and scope.brands is None else scope.label
         if filters:
             label = (label + " " if label else "") + ", ".join(filters.values())
         s = build_summary(ds, user, period, fact if filters else None, label if filters else None)
-        spark = {key: views.sparkline([w[key] for w in week]) for key in ("net_sales_idr", "qty_carton", "invoices", "avg_invoice_idr", "discount_pct")}
-        cum = an.cumulative(fact, ds.fact["date"].max())
-        by_month = {c["month"]: c for c in cum}
-        mm = an.mom(fact)
-        hero_month = period if period != "all" else months[-1]
-        hero_series = by_month.get(hero_month)
+        st = an.story(fact, ds.dim_outlet, period)
+        cum = {c["month"]: c for c in an.cumulative(fact, ds.fact["date"].max())}
         now = datetime.now(views.WIB)
-        top_region = max((r["value"] for r in region), default=0)
         ctx.update(
             totals=k,
             kpis=k,
             mom=an.mom(fact),
-            weekly=week,
-            sparks=spark,
             region=region,
             brand=brand,
-            heat=heat,
+            st=st,
+            bridge=views.waterfall(st) if st else [],
+            brand_rows=st["brands"] if st else [],
+            bmap=views.bubble_map(st["regions"]) if st else None,
+            days={m: views.day_tiles(m) for m in ((st["prev_month"], st["curr_month"]) if st else ())},
+            summary_checked=guard.check(s.text, s.facts, s.pct_facts).checked,
+            rule_count=len(RULES),
+            spark=views.spark_pair(cum[st["prev_month"]]["values"], cum[st["curr_month"]]["values"]) if st else None,
             weak=weak,
             bullets={w.outlet_id: views.bullet(w.net_sales_idr, w.peer_median_idr, width=100) for w in weak},
             summary=s,
-            headlines=an.headlines(fact, ds.dim_outlet, period, region, brand, weak),
-            chart=views.chart_payload(region, brand, heat, period, cum),
-            headline_short=an.short_headline(fact, weak),
-            cumulative=cum,
-            cum_insight=an.cumulative_insight(cum, mm),
-            hero={
-                "month": hero_month,
-                "value": hero_series["total"] if hero_series else k["net_sales_idr"],
-                "mom": mm if mm and mm["curr_month"] == hero_month else None,
-                "spark": views.sparkline(hero_series["daily"], 320, 56) if hero_series else None,
-            },
-            region_bars={r["key"]: views.bar_pct(r["value"], top_region) for r in region},
-            focus_region=filters.get("region") or views.sankey_focus(region),
             tasks={w.outlet_id: views.visit_task(w, fmt.period_label(period, months)) for w in weak},
-            last_month={w.outlet_id: views.last_month_value(w) for w in weak},
             now_hm=now.strftime("%H.%M"),
         )
         return ctx

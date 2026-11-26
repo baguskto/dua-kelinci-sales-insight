@@ -2,300 +2,294 @@
 {% macro qs(period_v=None, region=None, brand=None, keep=True) -%}
 ?period={{ period_v or period }}{% if keep and filters.region and region is none %}&region={{ filters.region|urlencode }}{% endif %}{% if region %}&region={{ region|urlencode }}{% endif %}{% if keep and filters.brand and brand is none %}&brand={{ filters.brand|urlencode }}{% endif %}{% if brand %}&brand={{ brand|urlencode }}{% endif %}
 {%- endmacro %}
-{% macro delta(v, digits=1) -%}
-{% if v is none %}<span class="delta">-</span>{% elif v >= 0 %}<span class="delta up" title="naik"><span aria-hidden="true">&#9650;</span> {{ fmt.pct(v, digits, true) }}</span>{% else %}<span class="delta down" title="turun"><span aria-hidden="true">&#9660;</span> {{ fmt.pct(v, digits, true) }}</span>{% endif %}
+{# Delta = colored text + arrow + sign (never color alone). kind: rp (juta) or pct. #}
+{% macro dlt(v, kind='rp', digits=1) -%}
+{% if v is none %}<span class="dl">&ndash;</span>{% else %}{% set r = (v / 1e6)|round(1) if kind == 'rp' else v|round(digits) %}<span class="dl {{ 'up' if r > 0 else 'down' if r < 0 else 'flat' }}"><span class="ar" aria-hidden="true">{{ '&#9650;'|safe if r > 0 else '&#9660;'|safe if r < 0 else '&#9679;'|safe }}</span><span class="sr-only">{{ 'naik' if r > 0 else 'turun' if r < 0 else 'tetap' }} </span>{{ fmt.jt(v, true) if kind == 'rp' else fmt.spct(v, digits) }}</span>{% endif %}
 {%- endmacro %}
-{% macro icon(name) -%}
-<svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-{%- if name == 'home' %}<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/>
-{%- elif name == 'store' %}<path d="M4 9.5 5.5 5h13L20 9.5M4 9.5h16M4 9.5c0 1.4 1.1 2.5 2.7 2.5S9.3 10.9 9.3 9.5c0 1.4 1.1 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1.1 2.5 2.6 2.5S20 10.9 20 9.5M5.5 12v7.5h13V12M10 19.5v-4h4v4"/>
-{%- elif name == 'send' %}<path d="M20.5 4 3.5 11l6 2.2M20.5 4l-3 15.5-8-6.3M20.5 4 9.5 13.2V19l3-3.4"/>
-{%- elif name == 'chat' %}<path d="M5 5.5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4.5 3.5V16.5H5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM8.5 10h7M8.5 13h4.5"/>
-{%- elif name == 'check' %}<path d="M12 3.5 19 6v5.5c0 4.3-3 7.6-7 9-4-1.4-7-4.7-7-9V6zM8.8 12l2.2 2.2 4.3-4.4"/>
-{%- endif %}</svg>
+{# Big number: value at full size, "Rp" and "jt" as muted units on the same line. #}
+{% macro big(v, signed=false) -%}
+{% set p = fmt.jt_parts(v, signed) %}<span class="u">{{ p[0] }}Rp</span>&nbsp;<span class="n">{{ p[1] }}</span>&nbsp;<span class="u">{{ p[2] }}</span>
+{%- endmacro %}
+{% macro info(text) -%}
+<button type="button" class="info" data-tip="{{ text }}" aria-label="Info: {{ text }}">{{ icon('info', size=16) }}</button>
+{%- endmacro %}
+{# Identity motif: thin vertical tick meter, filled ticks in the primary color. #}
+{% macro ticks(frac, n=30, h=14, label='') -%}
+{% set k = [[(frac * n)|round|int, 0]|max, n]|min %}{% if frac > 0 and k == 0 %}{% set k = 1 %}{% endif %}
+<svg class="tm" viewBox="0 0 {{ n * 6 - 3 }} {{ h }}" width="{{ n * 6 - 3 }}" height="{{ h }}" preserveAspectRatio="xMinYMid meet" {% if label %}role="img" aria-label="{{ label }}"{% else %}aria-hidden="true"{% endif %} focusable="false">
+{%- for i in range(n) %}<rect x="{{ i * 6 }}" y="0" width="3" height="{{ h }}" rx="1.5" class="{{ 'on' if i < k else 'off' }}"></rect>{% endfor %}</svg>
+{%- endmacro %}
+{% macro minibars(vals, w=84, h=36) -%}
+{% set top = (vals|map('abs')|max) or 1 %}{% set bw = w / (vals|length) %}
+<svg class="mini" viewBox="0 0 {{ w }} {{ h }}" width="{{ w }}" height="{{ h }}" aria-hidden="true" focusable="false"><line x1="0" x2="{{ w }}" y1="{{ h / 2 }}" y2="{{ h / 2 }}" class="mini-axis"></line>
+{%- for v in vals %}{% set bh = [(v|abs) / top * (h / 2 - 2), 1.5]|max %}<rect x="{{ (loop.index0 * bw + (bw - 6) / 2)|round(1) }}" width="6" rx="3" y="{{ (h / 2 - bh if v >= 0 else h / 2)|round(1) }}" height="{{ bh|round(1) }}" class="{{ 'up' if v >= 0 else 'down' }}"></rect>{% endfor %}</svg>
 {%- endmacro %}
 
 {% block bodyclass %}dash{% endblock %}
 
 {% block body %}
-<div class="app">
-  <nav class="rail" aria-label="Navigasi utama">
-    <a class="rail-logo" href="/" aria-label="Penjualan Dua Kelinci, muat ulang dashboard"><img src="/static/img/logo-white.png" alt="" width="38" height="23"></a>
-    <ul class="rail-list">
-      <li><a class="rail-btn" href="#ringkasan" data-spy="ringkasan">{{ icon('home') }}<span class="rail-label">Ringkasan</span></a></li>
-      {% if ds and not empty and not scope_empty %}
-      <li><a class="rail-btn" href="#sec-weak" data-spy="sec-weak">{{ icon('store') }}<span class="rail-label">Outlet</span></a></li>
-      <li><a class="rail-btn" href="#sec-tg" data-spy="sec-tg">{{ icon('send') }}<span class="rail-label">Telegram</span></a></li>
-      {% endif %}
+<div class="page">
+  <header class="hd" id="ringkasan">
+    <div class="hd-row">
+      <a class="hd-brand" href="/" aria-label="Penjualan Dua Kelinci, muat ulang dashboard"><img class="hd-logo" src="/static/img/logo-red.png" alt="Dua Kelinci" width="52" height="31"></a>
+      <h1>{{ greeting or 'Penjualan Dua Kelinci' }}</h1>
       {% if ds %}
-      <li><button type="button" class="rail-btn" data-open="chat-drawer" aria-haspopup="dialog">{{ icon('chat') }}<span class="rail-label">Tanya data</span></button></li>
-      <li><button type="button" class="rail-btn" data-open="dq-drawer" aria-haspopup="dialog">{{ icon('check') }}<span class="rail-label">Kualitas data</span></button></li>
+      <nav class="seg periods" aria-label="Periode">
+        {% for m in months %}<a href="{{ qs(m) }}" {% if period == m %}aria-current="page"{% endif %}>{{ fmt.month_label(m).split()[0] }}</a>{% endfor %}
+        {% if months|length > 1 %}<a href="{{ qs('all') }}" {% if period == 'all' %}aria-current="page"{% endif %}>{{ fmt.month_label(months[0]).split()[0] }}&ndash;{{ fmt.month_label(months[-1]).split()[0] }}</a>{% endif %}
+      </nav>
+      <form class="filt" method="get" action="/" aria-label="Filter">
+        <input type="hidden" name="period" value="{{ period }}">
+        <label class="sr-only" for="f-region">Region</label>
+        <select id="f-region" name="region">
+          <option value="">Semua region</option>
+          {% for r in filter_options.region %}<option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+        </select>
+        <label class="sr-only" for="f-brand">Brand</label>
+        <select id="f-brand" name="brand">
+          <option value="">Semua brand</option>
+          {% for b in filter_options.brand %}<option value="{{ b }}" {% if filters.brand == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn-sec apply">Terapkan</button>
+      </form>
+      {% if filters %}
+      <div class="filters" aria-label="Filter aktif">
+        {% for k, v in filters.items() %}<a class="fchip" href="{{ qs(keep=False) }}{% for k2, v2 in filters.items() if k2 != k %}&{{ k2 }}={{ v2|urlencode }}{% endfor %}" aria-label="Hapus filter {{ v }}">{{ v }} <span aria-hidden="true">&times;</span></a>{% endfor %}
+      </div>
       {% endif %}
+      <div class="hd-actions">
+        <button type="button" class="dq-badge" data-open="dq-drawer" aria-haspopup="dialog" title="Kualitas data: {{ ds.result.meta.rows_clean }} baris bersih, {{ ds.result.meta.rows_quarantined }} duplikat dikarantina">{{ icon('shield-check', size=16) }}<span>{{ '{:,}'.format(ds.result.meta.rows_clean).replace(',', '.') }} &middot; {{ ds.result.meta.rows_quarantined }} karantina</span></button>
+        <button type="button" class="btn-sec" data-open="chat-drawer" aria-haspopup="dialog" aria-label="Tanya data" title="Tanya data">{{ icon('message-circle', size=16) }}<span class="ibtn-l">Tanya</span></button>
+        {% include "_who.html" %}
+      </div>
+      {% else %}
+      <div class="hd-actions">{% include "_who.html" %}</div>
+      {% endif %}
+    </div>
+  </header>
+
+  <main id="main" class="grid">
+  {% if flash %}<p class="alert ok full" role="status">{{ flash }}</p>{% endif %}
+  {% if upload_error %}
+  <div class="alert error full" role="alert"><strong>File ditolak.</strong> {{ upload_error }}
+    {% if upload_error_details.found %}<br><span class="small">Kolom yang ditemukan: {{ upload_error_details.found|join(', ') }}</span>{% endif %}
+    <br><span class="small">Data yang sedang tampil tidak berubah.</span></div>
+  {% endif %}
+
+  {% if not ds %}
+  <section class="card state full">
+    <h2>Belum ada data</h2>
+    <p>{{ load_error or 'File penjualan belum dimuat.' }}</p>
+    {% if user.can_upload() %}{% include "_upload.html" %}{% else %}<p>Minta admin mengunggah file penjualan.</p>{% endif %}
+  </section>
+  {% elif scope_empty %}
+  <section class="card state full">
+    <h2>Tidak ada data dalam akses Anda</h2>
+    <p>Akun Anda ({{ scope.label }}) tidak punya baris penjualan di file ini. Hubungi admin bila ini keliru.</p>
+  </section>
+  {% elif empty %}
+  <section class="card state full">
+    <h2>Tidak ada penjualan untuk filter ini</h2>
+    <p>Kombinasi {{ filters.values()|join(' dan ') }} tidak punya transaksi pada {{ period_label }}.</p>
+    <p><a class="btn-sec" href="{{ qs(keep=False) }}">Hapus filter</a></p>
+  </section>
+  {% else %}
+  {% set pm = fmt.month_label(st.prev_month).split()[0] if st else '' %}
+  {% set cm = fmt.month_label(st.curr_month).split()[0] if st else '' %}
+  {% if st %}
+
+  <section class="card c-net" aria-labelledby="h-net">
+    <div class="card-head"><h2 id="h-net">{{ icon('receipt') }} Net {{ cm }}</h2><span class="meta">vs {{ pm }}</span></div>
+    <p class="v">{{ big(st.curr) }}</p>
+    <p class="s">{{ dlt(st.change) }} {{ dlt(st.pct, 'pct') }}</p>
+    <svg class="spark viz" viewBox="0 0 {{ spark.width }} {{ spark.height }}" preserveAspectRatio="none" role="img" aria-label="Kumulatif harian {{ pm }} abu, {{ cm }} merah"><polygon points="{{ spark.area }}" class="sp-area"></polygon><polyline points="{{ spark.prev }}" class="sp-prev" vector-effect="non-scaling-stroke"></polyline><polyline points="{{ spark.curr }}" class="sp-curr" vector-effect="non-scaling-stroke"></polyline></svg>
+  </section>
+
+  <section class="card c-ex" aria-labelledby="h-ex">
+    <div class="card-head"><h2 id="h-ex">{{ icon('store') }} Tanpa outlet teratas</h2>{% if st.top %}{{ info('Tanpa ' ~ st.top.outlet_name ~ ' (' ~ st.top.outlet_id ~ '): ' ~ pm ~ ' ' ~ fmt.jt(st.ex_top.prev) ~ ', ' ~ cm ~ ' ' ~ fmt.jt(st.ex_top.curr) ~ '. Outlet ini menyumbang ' ~ fmt.jt(st.top.change, true) ~ ', ' ~ fmt.pct(st.top.share_of_change_pct, 0) ~ ' dari perubahan total.') }}{% endif %}</div>
+    {% if st.ex_top %}
+    <p class="v">{{ dlt(st.ex_top.pct, 'pct') }}</p>
+    {% set mx = [st.pct|abs, st.ex_top.pct|abs, 0.1]|max %}
+    <ul class="pm viz" aria-label="Pertumbuhan dengan dan tanpa outlet teratas">
+      <li><span class="pm-l">Semua outlet</span><svg class="pm-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="50" x2="50" y1="0" y2="8" class="axis" vector-effect="non-scaling-stroke"></line><rect y="1" height="6" rx="3" x="{{ 50 if st.pct >= 0 else (50 - (st.pct|abs) / mx * 48)|round(1) }}" width="{{ [(st.pct|abs) / mx * 48, 1]|max|round(1) }}" class="{{ 'up' if st.pct >= 0 else 'down' }}"></rect></svg>{{ dlt(st.pct, 'pct') }}</li>
+      <li><span class="pm-l">Tanpa outlet #1</span><svg class="pm-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="50" x2="50" y1="0" y2="8" class="axis" vector-effect="non-scaling-stroke"></line><rect y="1" height="6" rx="3" x="{{ 50 if st.ex_top.pct >= 0 else (50 - (st.ex_top.pct|abs) / mx * 48)|round(1) }}" width="{{ [(st.ex_top.pct|abs) / mx * 48, 1]|max|round(1) }}" class="{{ 'up' if st.ex_top.pct >= 0 else 'down' }}"></rect></svg>{{ dlt(st.ex_top.pct, 'pct') }}</li>
     </ul>
-  </nav>
+    <p class="share-l"><a href="/outlet/{{ st.top.outlet_id }}">{{ st.top.outlet_name }}</a><span class="num">{{ fmt.pct(st.top.share_of_curr_pct) }} net {{ cm }}</span></p>
+    {{ ticks(st.top.share_of_curr_pct / 100, 36, 14, st.top.outlet_name ~ ' ' ~ fmt.pct(st.top.share_of_curr_pct) ~ ' dari net ' ~ cm) }}
+    {% else %}<p class="v">{{ dlt(st.pct, 'pct') }}</p>{% endif %}
+  </section>
 
-  <div class="page">
-    <header class="hd" id="ringkasan">
-      <div class="hd-row">
-        <img class="hd-logo" src="/static/img/logo-red.png" alt="Dua Kelinci" width="56" height="34">
-        <div class="hd-title">
-          <h1>{{ greeting or 'Penjualan Dua Kelinci' }}</h1>
-          {% if headline_short %}<p class="hd-sub">{% for p in headline_short.split(' · ') %}{% if not loop.first %} <span aria-hidden="true">&middot;</span> {% endif %}<span class="{{ 'alert-ink' if 'outlet' in p else '' }}">{{ p }}</span>{% endfor %}</p>{% endif %}
-        </div>
-        {% if ds %}
-        <div class="hd-actions">
-          <button type="button" class="dq-badge" data-open="dq-drawer" aria-haspopup="dialog"><span class="dq-dot" aria-hidden="true"></span>{{ '{:,}'.format(ds.result.meta.rows_clean).replace(',', '.') }} baris bersih &middot; {{ ds.result.meta.rows_quarantined }} duplikat dikarantina</button>
-          {% if summary %}
-            {% if user.can_send_telegram() and telegram_enabled %}
-            <button type="button" class="btn-primary js-tg-send" data-period="{{ period }}">Kirim ke Telegram</button>
-            {% else %}
-            <button type="button" class="btn-primary" data-copy-target="tg-text" data-status="tg-status">Salin ringkasan</button>
-            {% endif %}
-          {% endif %}
-          {% include "_who.html" %}
-        </div>
-        {% else %}
-        <div class="hd-actions">{% include "_who.html" %}</div>
-        {% endif %}
-      </div>
-      {% if ds %}
-      <div class="hd-row hd-controls">
-        <nav class="seg periods" aria-label="Periode">
-          {% for m in months %}<a href="{{ qs(m) }}" {% if period == m %}aria-current="page"{% endif %}>{{ fmt.month_label(m).split()[0] }}</a>{% endfor %}
-          {% if months|length > 1 %}<a href="{{ qs('all') }}" {% if period == 'all' %}aria-current="page"{% endif %}>{{ fmt.month_label(months[0]).split()[0] }}&ndash;{{ fmt.month_label(months[-1]).split()[0] }}</a>{% endif %}
-        </nav>
-        <form class="filt" method="get" action="/" aria-label="Filter">
-          <input type="hidden" name="period" value="{{ period }}">
-          <label class="sr-only" for="f-region">Region</label>
-          <select id="f-region" name="region">
-            <option value="">Semua region</option>
-            {% for r in filter_options.region %}<option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
-          </select>
-          <label class="sr-only" for="f-brand">Brand</label>
-          <select id="f-brand" name="brand">
-            <option value="">Semua brand</option>
-            {% for b in filter_options.brand %}<option value="{{ b }}" {% if filters.brand == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
-          </select>
-          <button type="submit" class="btn-ghost apply">Terapkan</button>
-        </form>
-        {% if filters %}
-        <div class="filters" aria-label="Filter aktif">
-          {% for k, v in filters.items() %}<a class="fchip" href="{{ qs(keep=False) }}{% for k2, v2 in filters.items() if k2 != k %}&{{ k2 }}={{ v2|urlencode }}{% endfor %}" aria-label="Hapus filter {{ v }}">{{ v }} <span aria-hidden="true">&times;</span></a>{% endfor %}
-        </div>
-        {% endif %}
-        <p class="hd-meta"><span class="scope" title="Data yang boleh Anda lihat">{{ scope.label }}</span> <span class="loaded">&middot; data dimuat {{ loaded_at }}</span></p>
-      </div>
-      {% endif %}
-    </header>
-
-    <main id="main" class="grid">
-    {% if flash %}<p class="alert ok full" role="status">{{ flash }}</p>{% endif %}
-    {% if upload_error %}
-    <div class="alert error full" role="alert"><strong>File ditolak.</strong> {{ upload_error }}
-      {% if upload_error_details.found %}<br><span class="small">Kolom yang ditemukan: {{ upload_error_details.found|join(', ') }}</span>{% endif %}
-      <br><span class="small">Data yang sedang tampil tidak berubah.</span></div>
-    {% endif %}
-
-    {% if not ds %}
-    <section class="card state full">
-      <h2>Belum ada data</h2>
-      <p>{{ load_error or 'File penjualan belum dimuat.' }}</p>
-      {% if user.can_upload() %}{% include "_upload.html" %}{% else %}<p>Minta admin mengunggah file penjualan.</p>{% endif %}
-    </section>
-    {% elif scope_empty %}
-    <section class="card state full">
-      <h2>Tidak ada data dalam akses Anda</h2>
-      <p>Akun Anda ({{ scope.label }}) tidak punya baris penjualan di file ini. Hubungi admin bila ini keliru.</p>
-    </section>
-    {% elif empty %}
-    <section class="card state full">
-      <h2>Tidak ada penjualan untuk filter ini</h2>
-      <p>Kombinasi {{ filters.values()|join(' dan ') }} tidak punya transaksi pada {{ period_label }}.</p>
-      <p><a class="btn-dark" href="{{ qs(keep=False) }}">Hapus filter</a></p>
-    </section>
-    {% else %}
-
-    <div class="col-main">
-      <section class="mhero" aria-labelledby="h-mhero">
-        <h2 class="k" id="h-mhero">Penjualan neto {{ fmt.month_label(hero.month, true).split()[0] }}</h2>
-        <p class="v">{{ fmt.rupiah_short(hero.value) }}</p>
-        <p class="s">{% if hero.mom and hero.mom.pct is not none %}<span aria-hidden="true">{{ '&#9650;'|safe if hero.mom.pct >= 0 else '&#9660;'|safe }}</span> {{ fmt.pct(hero.mom.pct, 1, true) }} dari {{ fmt.month_label(hero.mom.prev_month, true).split()[0] }}{% else %}{{ fmt.month_label(hero.month, true) }}{% endif %}</p>
-        {% if hero.spark and hero.spark.points %}<svg class="mhero-spark" viewBox="0 0 {{ hero.spark.width }} {{ hero.spark.height }}" preserveAspectRatio="none" role="img" aria-label="Penjualan harian {{ fmt.month_label(hero.month, true) }}"><polygon points="{{ hero.spark.area }}" class="spark-area"></polygon><polyline points="{{ hero.spark.points }}" class="spark-line" vector-effect="non-scaling-stroke"></polyline></svg>{% endif %}
-      </section>
-
-      <section class="kpis" aria-label="Angka utama {{ period_label }}">
-        {% set np = fmt.rupiah_short_parts(kpis.net_sales_idr) %}
-        <div class="kpi kpi-main tint-rose">
-          <p class="k">Penjualan neto &middot; {{ period_label }}</p>
-          <p class="v"><span class="n">{{ np[0] }}</span> <span class="u">{{ np[1] }}</span></p>
-          <p class="s">{% if mom and period == 'all' %}{{ delta(mom.pct) }} {{ fmt.month_label(mom.curr_month).split()[0] }} vs {{ fmt.month_label(mom.prev_month).split()[0] }}{% else %}{{ fmt.rupiah(kpis.net_sales_idr) }}{% endif %}</p>
-          {% if mom and period == 'all' and mom.per_day_pct is not none %}<p class="s">per hari kerja {{ delta(mom.per_day_pct) }} ({{ mom.curr_trading_days }} vs {{ mom.prev_trading_days }} hari kerja)</p>{% endif %}
-          <p class="s">Retur {{ fmt.rupiah_short(kpis.returns_idr) }} sudah dikurangkan</p>
-        </div>
-        <div class="kpi tint-sand">
-          <p class="k">Karton terjual</p>
-          <p class="v"><span class="n">{{ '{:,}'.format(kpis.qty_carton).replace(',', '.') }}</span></p>
-          <p class="s">{{ period_label }}, setelah retur</p>
-        </div>
-        <div class="kpi tint-stone">
-          <p class="k">Outlet aktif</p>
-          <p class="v"><span class="n">{{ kpis.active_outlets }}</span></p>
-          <p class="s">{{ '{:,}'.format(kpis.invoices).replace(',', '.') }} invoice &middot; rata-rata {{ fmt.rupiah_short(kpis.avg_invoice_idr) }}</p>
-        </div>
-        <div class="kpi tint-white">
-          <p class="k">Diskon dari gross</p>
-          <p class="v"><span class="n">{{ fmt.pct(kpis.discount_pct_of_gross) }}</span></p>
-          <p class="s">{{ fmt.rupiah_short(kpis.discount_idr) }} dari {{ fmt.rupiah_short(kpis.gross_sales_idr) }}</p>
-        </div>
-      </section>
-
-      <section class="card hero" id="sec-cum" aria-labelledby="h-cum">
-        <div class="card-head">
-          <h2 id="h-cum">Penjualan neto kumulatif per tanggal</h2>
-          {% if cumulative|length > 1 %}<p class="legend" aria-hidden="true"><span class="lg lg-prev"></span>{{ fmt.month_label(cumulative[-2].month).split()[0] }} <span class="lg lg-curr"></span>{{ fmt.month_label(cumulative[-1].month).split()[0] }}</p>{% endif %}
-        </div>
-        <p class="insight">{{ cum_insight }}</p>
-        <div class="chart skeleton" id="chart-cum" aria-hidden="true"></div>
-        <details class="tablewrap"><summary>Lihat tabel</summary>
-          <div class="scroll"><table class="tbl"><thead><tr><th scope="col">Tanggal</th>{% for c in cumulative %}<th scope="col" class="num">{{ fmt.month_label(c.month).split()[0] }} kumulatif</th>{% endfor %}</tr></thead>
-          <tbody>{% for d in range(cumulative|map(attribute='values')|map('length')|max) %}<tr><th scope="row">{{ d + 1 }}</th>{% for c in cumulative %}<td class="num">{% if d < c['values']|length %}{{ fmt.rupiah(c['values'][d]) }}{% else %}-{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-        </details>
-      </section>
-
-      <div class="region-wrap">
-        <section class="card" id="sec-region" aria-labelledby="h-region">
-          <div class="card-head">
-            <h2 id="h-region">Penjualan per region <span class="per">{% if chart.months|length == 2 %}{{ chart.months[0] }} ke {{ chart.months[1] }}{% else %}{{ period_label }}{% endif %}</span></h2>
-            {% if chart.months|length == 2 %}<p class="legend" aria-hidden="true"><span class="lg lg-dot-prev"></span>{{ chart.months[0] }} <span class="lg lg-dot-curr"></span>{{ chart.months[1] }}</p>{% endif %}
-          </div>
-          <p class="headline">{{ headlines.region }}</p>
-          <div class="chart skeleton" id="chart-region" data-rows="{{ region|length }}" aria-hidden="true"></div>
-          <details class="tablewrap"><summary>Lihat tabel</summary>
-            <div class="scroll"><table class="tbl"><thead><tr><th scope="col">Region</th><th scope="col" class="num">Net {{ period_label }}</th><th scope="col" class="num">Porsi</th>{% if region[0].prev_month %}<th scope="col" class="num">{{ fmt.month_label(region[0].prev_month).split()[0] }}</th><th scope="col" class="num">{{ fmt.month_label(region[0].curr_month).split()[0] }}</th><th scope="col" class="num">Perubahan</th>{% endif %}</tr></thead>
-            <tbody>{% for r in region %}<tr><th scope="row"><a href="{{ qs(region=r.key) }}">{{ r.key }}</a></th><td class="num">{{ fmt.rupiah(r.value) }}</td><td class="num">{{ fmt.pct(r.share_pct) }}</td>{% if r.prev_month %}<td class="num">{{ fmt.rupiah(r.prev) }}</td><td class="num">{{ fmt.rupiah(r.curr) }}</td><td class="num">{{ delta(r.mom_pct) }}</td>{% endif %}</tr>{% endfor %}</tbody></table></div>
-            <p class="small"><a href="/export/region.csv{{ qs() }}">Unduh CSV</a></p>
-          </details>
-        </section>
-
-        <section class="card" id="sec-rlist" aria-labelledby="h-rlist">
-          <h2 id="h-rlist">Region <span class="per">{{ period_label }}{% if region[0].prev_month %}, perubahan {{ fmt.month_label(region[0].prev_month).split()[0] }} ke {{ fmt.month_label(region[0].curr_month).split()[0] }}{% endif %}</span></h2>
-          <ol class="rlist">
-            {% for r in region %}
-            <li><a class="rl-row{% if r.key == focus_region %} is-focus{% endif %}" href="{{ qs(region=r.key) }}" aria-label="Filter {{ r.key }}: {{ fmt.rupiah_short(r.value) }}{% if r.mom_pct is not none %}, {{ 'naik' if r.mom_pct >= 0 else 'turun' }} {{ fmt.pct(r.mom_pct|abs) }}{% endif %}">
-              <span class="rl-name">{{ r.key }}</span>
-              <span class="rl-val">{{ fmt.rupiah_short(r.value) }} {% if r.mom_pct is not none %}{{ delta(r.mom_pct) }}{% endif %}</span>
-              <svg class="rl-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="99" y2="4" class="rl-track" vector-effect="non-scaling-stroke"></line><line x1="1" y1="4" x2="{{ [region_bars[r.key], 1]|max }}" y2="4" class="rl-fill" vector-effect="non-scaling-stroke"></line></svg>
-            </a></li>
-            {% endfor %}
-          </ol>
-        </section>
-      </div>
-
-      <section class="card" id="sec-brand" aria-labelledby="h-brand">
-        <h2 id="h-brand">Penjualan per brand <span class="per">{{ period_label }}{% if brand[0].prev_month %}, perubahan {{ fmt.month_label(brand[0].prev_month).split()[0] }} ke {{ fmt.month_label(brand[0].curr_month).split()[0] }}{% endif %}</span></h2>
-        <p class="headline">{{ headlines.brand }}</p>
-        <div class="chart skeleton" id="chart-brand" data-rows="{{ brand|length }}" aria-hidden="true"></div>
-        <details class="tablewrap"><summary>Lihat tabel</summary>
-          <table class="tbl"><thead><tr><th scope="col">Brand</th><th scope="col" class="num">Net</th><th scope="col" class="num">Porsi</th>{% if brand[0].prev_month %}<th scope="col" class="num">Perubahan</th>{% endif %}</tr></thead>
-          <tbody>{% for r in brand %}<tr><th scope="row"><a href="{{ qs(brand=r.key) }}">{{ r.key }}</a></th><td class="num">{{ fmt.rupiah(r.value) }}</td><td class="num">{{ fmt.pct(r.share_pct) }}</td>{% if r.prev_month %}<td class="num">{{ delta(r.mom_pct) }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
-          <p class="small"><a href="/export/brand.csv{{ qs() }}">Unduh CSV</a></p>
-        </details>
-      </section>
-
-      <section class="card" id="sec-flow" aria-labelledby="h-flow">
-        <div class="card-head">
-          <h2 id="h-flow">Alur penjualan region ke brand <span class="per">{{ period_label }}, lebar pita = penjualan neto</span></h2>
-          {% set fr = region|selectattr('key', 'equalto', focus_region)|first %}
-          <p class="flow-badge{% if fr and fr.mom_pct is not none and fr.mom_pct < 0 %} is-down{% endif %}" id="flow-badge" aria-live="polite">{% if fr %}{{ fr.key }}{% if fr.mom_pct is not none %} {{ '&#9650;'|safe if fr.mom_pct >= 0 else '&#9660;'|safe }} {{ fmt.pct(fr.mom_pct, 1, true) }} {{ chart.months|join(' ke ') }}{% endif %}{% endif %}</p>
-        </div>
-        {% if region|length > 1 %}
-        <p class="flow-pick"><label for="flow-focus">Sorot region</label>
-          <select id="flow-focus">{% for r in region %}<option value="{{ r.key }}" {% if r.key == focus_region %}selected{% endif %}>{{ r.key }}</option>{% endfor %}</select>
-          <span class="small">Klik nama region di grafik juga menyorotnya.</span></p>
-        {% endif %}
-        <div class="chart skeleton" id="chart-flow" aria-hidden="true"></div>
-        <details class="tablewrap"><summary>Lihat tabel</summary>
-          <div class="scroll"><table class="tbl sticky-first"><thead><tr><th scope="col">Region</th>{% for b in heat.brands %}<th scope="col" class="num">{{ b }}</th>{% endfor %}</tr></thead>
-          <tbody>{% for r in heat.regions %}<tr><th scope="row">{{ r }}</th>{% for c in heat.cells if c.region == r %}<td class="num">{{ fmt.rupiah_short(c.value) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-        </details>
-      </section>
+  <section class="card c-day" aria-labelledby="h-day">
+    <div class="card-head"><h2 id="h-day">{{ icon('calendar') }} Per hari kerja</h2>{{ info(cm ~ ' punya ' ~ st.curr_trading_days ~ ' hari kerja (Senin sampai Sabtu), ' ~ pm ~ ' ' ~ st.prev_trading_days ~ '. Net per hari kerja ' ~ fmt.jt(st.per_day_prev) ~ ' ke ' ~ fmt.jt(st.per_day_curr) ~ '. Garis merah = hari kerja, pendek = Minggu.') }}</div>
+    <p class="v">{{ dlt(st.per_day_pct, 'pct') }}</p>
+    <p class="s"><span class="vs">{{ fmt.jt(st.per_day_prev) }} &rarr; {{ fmt.jt(st.per_day_curr) }} per hari</span></p>
+    <div class="days viz">
+      {% for m, lab, n in ((st.prev_month, pm, st.prev_trading_days), (st.curr_month, cm, st.curr_trading_days)) %}
+      <p class="day-row"><span class="day-l">{{ lab }}</span><svg class="tm" viewBox="0 0 {{ 31 * 6 - 3 }} 14" width="{{ 31 * 6 - 3 }}" height="14" preserveAspectRatio="xMinYMid meet" role="img" aria-label="{{ lab }}: {{ n }} hari kerja">{% for t in days[m] %}<rect x="{{ loop.index0 * 6 }}" y="0" width="3" height="14" rx="1.5" class="{{ ('on' if m == st.curr_month else 'on-prev') if t else 'off' }}"></rect>{% endfor %}</svg><span class="num">{{ n }} hari</span></p>
+      {% endfor %}
     </div>
+  </section>
 
-    <div class="col-side">
-      <section class="card tg" id="sec-tg" aria-labelledby="h-tg">
-        <h2 id="h-tg">Ringkasan untuk Telegram <span class="per">{{ period_label }}</span></h2>
-        <div class="tgwin">
-          <div class="tg-head">
-            <span class="bot-ava"><img src="/static/img/logo-white.png" alt="" width="30" height="18"></span>
-            <p><strong>Dua Kelinci Sales Bot</strong><span>bot</span></p>
-          </div>
-          <div class="tg-body">
-            <div class="bubble"><p id="tg-text">{{ summary.text }}</p><p class="bubble-meta">{{ summary.text|length }} karakter &middot; <time>{{ now_hm }}</time></p></div>
-            <div class="tg-kb" role="group" aria-label="Tombol pintas di pesan">
-              <a class="kb" href="#ringkasan">Buka dashboard</a>
-              <a class="kb" href="#sec-weak">Lihat {{ weak|length }} outlet</a>
-              <a class="kb" href="{% if scope.regions %}{{ qs(region=(scope.regions|sort|first)) }}{% else %}#sec-rlist{% endif %}">Region saya</a>
-              <button type="button" class="kb" data-open="chat-drawer" aria-haspopup="dialog">Tanya data</button>
-            </div>
-          </div>
-        </div>
-        <p class="small">Dibuat dari angka di halaman ini, tanpa internet.{% if summary.source == 'llm' %} Bahasa dirapikan AI; semua angka sudah dicek.{% endif %} Tombol di pesan adalah pintasan di aplikasi ini.</p>
-        <div class="row">
-          <button type="button" class="btn-dark" id="copy-btn" data-copy-target="tg-text" data-status="tg-status">Salin</button>
-          {% if user.can_send_telegram() and telegram_enabled %}<button type="button" class="btn-ghost js-tg-send" data-period="{{ period }}">Kirim</button>{% endif %}
-          <a class="btn-ghost" href="/summary/print{{ qs() }}" target="_blank" rel="noopener">Cetak</a>
-        </div>
-        <p id="tg-status" class="small" role="status" aria-live="polite">{% if not telegram_enabled %}Kirim ke Telegram belum diatur (TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID); salin teks lalu tempel di grup.{% endif %}</p>
-      </section>
-
-      <section class="card attention" id="sec-weak" aria-labelledby="h-weak">
-        <h2 id="h-weak">{% if weak %}{{ weak|length }} outlet perlu dikunjungi{% else %}Outlet perlu dikunjungi{% endif %} <span class="per">{{ period_label }}, dibanding median outlet sejenis</span></h2>
-        {% if weak %}<p class="headline alert-ink">{{ headlines.weak }}</p>{% else %}<p class="headline">Tidak ada outlet di bawah median outlet sejenis untuk pilihan ini.</p>{% endif %}
-        <ol class="weak">
-        {% for w in weak %}
-          {% set b = bullets[w.outlet_id] %}
-          {% set lm = last_month[w.outlet_id] %}
-          <li class="wcard">
-            <div class="w-top">
-              <p class="w-rank"><span class="rank" aria-hidden="true">{{ w.rank }}</span> Prioritas {{ w.rank }}</p>
-              <h3 class="w-name"><a href="/outlet/{{ w.outlet_id }}">{{ w.outlet_name }}</a></h3>
-              <p class="w-meta">{{ w.outlet_id }} &middot; {{ w.outlet_type }} &middot; {{ w.branch }}, {{ w.region }}</p>
-              <p class="w-cap">Penjualan {{ period_label }} vs median {{ w.outlet_type }}</p>
-              <svg class="bullet" viewBox="0 0 {{ b.width }} 16" preserveAspectRatio="none" role="img" aria-label="{{ fmt.rupiah_short(w.net_sales_idr) }} dibanding median {{ w.outlet_type }} {{ fmt.rupiah_short(w.peer_median_idr) }}, {{ fmt.pct(w.index_pct, 0) }} dari median">
-                <line x1="0" y1="8" x2="{{ b.width }}" y2="8" class="bullet-bg" vector-effect="non-scaling-stroke"></line>
-                <line x1="0" y1="8" x2="{{ [b.bar, 1.5]|max }}" y2="8" class="bullet-bar" vector-effect="non-scaling-stroke"></line>
-                <line x1="{{ b.median }}" x2="{{ b.median }}" y1="0" y2="16" class="bullet-median" vector-effect="non-scaling-stroke"></line>
-              </svg>
-              <p class="w-bnums"><strong>{{ fmt.rupiah_short(w.net_sales_idr) }}</strong> <span>median {{ fmt.rupiah_short(w.peer_median_idr) }} ({{ fmt.pct(w.index_pct, 0) }})</span></p>
-            </div>
-            <dl class="w-facts">
-              <div><dt>Order</dt><dd>{{ w.invoices }} kali <span class="muted">median {{ fmt._dec(w.peer_median_invoices, 1) }}</span></dd></div>
-              {% if lm %}<div><dt>Bulan terakhir</dt><dd>{{ lm[0] }} {{ fmt.rupiah_short(lm[1]) }}{% if w.mom_pct is not none %} {{ delta(w.mom_pct, 0) }}{% endif %}</dd></div>{% endif %}
-              {% if w.notes %}<div><dt>Catatan data</dt><dd class="w-chips">{% for n in w.notes %}<span class="badge-dq">{{ views.note_label(n) }}</span>{% endfor %}</dd></div>{% endif %}
-            </dl>
-            {% if w.notes %}<details class="dqnote"><summary>Cek data: {{ w.notes|length }} catatan</summary>{% for n in w.notes %}<p>{{ n }}</p>{% endfor %}</details>{% endif %}
-            <p class="w-why">{{ views.reason_line(w) }}{% if w.last_order_date %} Order terakhir {{ w.last_order_date }}.{% endif %}</p>
-            <p class="w-act"><strong>Saran:</strong> {{ views.suggestion(w) }}</p>
-            <div class="w-actions">
-              <a class="btn-dark" href="/outlet/{{ w.outlet_id }}/kunjungan.ics{{ qs() }}" download="kunjungan-{{ w.outlet_id }}.ics">Jadwalkan kunjungan</a>
-              <button type="button" class="btn-soft" data-copy="{{ tasks[w.outlet_id] }}" data-status="wst-{{ w.outlet_id }}">Salin tugas</button>
-            </div>
-            <p class="small w-status" id="wst-{{ w.outlet_id }}" role="status" aria-live="polite"></p>
-          </li>
+  <section class="card c-map" aria-labelledby="h-map">
+    <div class="card-head"><h2 id="h-map">{{ icon('map-pin') }} Region turun</h2><span class="meta">ukuran = net {{ cm }}, Rp jt</span>{{ info(st.regions_down ~ ' dari ' ~ st.regions_total ~ ' region turun dari ' ~ pm ~ ' ke ' ~ cm ~ '. Lingkaran: luas = net ' ~ cm ~ ', oranye dan ▼ turun, hijau dan ▲ naik. Klik lingkaran untuk filter region.') }}</div>
+    <div class="map-wrap">
+      <p class="v"><span class="dl {{ 'down' if st.regions_down else 'up' }}"><span class="ar" aria-hidden="true">{{ '&#9660;'|safe if st.regions_down else '&#9650;'|safe }}</span> {{ st.regions_down }}</span><span class="u">/{{ st.regions_total }}</span></p>
+      <svg class="map viz" viewBox="0 0 {{ bmap.width }} {{ bmap.height }}" role="img" aria-label="Peta region: {% for p in bmap.points %}{{ p.key }} {{ fmt.jt(p.change, true) }}{% if not loop.last %}, {% endif %}{% endfor %}">
+        <clipPath id="map-clip"><rect x="0" y="0" width="{{ bmap.width }}" height="{{ bmap.height }}"></rect></clipPath>
+        <path d="{{ bmap.path }}" class="land" clip-path="url(#map-clip)"></path>
+        {% for p in bmap.points|sort(attribute='r', reverse=true) %}
+        <a href="{{ qs(region=p.key) }}" class="bub {{ 'up' if p.change >= 0 else 'down' }}" aria-label="{{ p.key }}: net {{ fmt.jt(p.curr) }}, {{ 'naik' if p.change >= 0 else 'turun' }} {{ fmt.jt(p.change|abs) }}">
+          <title>{{ p.key }}: {{ fmt.jt(p.prev) }} &rarr; {{ fmt.jt(p.curr) }} ({{ fmt.jt(p.change, true) }}, {{ fmt.spct(p.pct) }})</title>
+          {% if p.java %}<line x1="{{ p.x }}" y1="{{ p.y }}" x2="{{ p.lx }}" y2="{{ p.ly - 11 }}" class="lead"></line>{% endif %}
+          <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ [p.r, 3]|max }}"></circle>
+          <text x="{{ p.lx }}" y="{{ p.ly }}" text-anchor="{{ p.anchor }}" class="bl"><tspan class="bn">{{ p.short }}</tspan><tspan x="{{ p.lx }}" dy="11" class="bd">{{ '▲' if p.change >= 0 else '▼' }} {{ p.dlabel[0] }}{{ p.dlabel[1] }}</tspan></text>
+        </a>
         {% endfor %}
-        </ol>
-        <p class="small"><a href="/export/weakest.csv{{ qs() }}">Unduh CSV (20 terlemah)</a> &middot; <button type="button" class="link" data-open="def-drawer" aria-haspopup="dialog">Cara hitung</button></p>
-        <p class="small">"Jadwalkan kunjungan" mengunduh file kalender (.ics) untuk hari kerja berikutnya; "Salin tugas" menyalin teks tugas untuk salesman.</p>
-      </section>
+      </svg>
     </div>
+  </section>
 
-    <script type="application/json" id="chart-data">{{ chart|tojson }}</script>
+  <section class="card c-wf" id="sec-bridge" aria-labelledby="h-bridge">
+    <div class="card-head"><h2 id="h-bridge">{{ icon('map-pin') }} {{ pm }} &rarr; {{ cm }} per region</h2><span class="meta">{{ dlt(st.change) }}</span>{{ info('Perubahan net per region. Outlet penyumbang terbesar dipisah dari regionnya. Jumlah langkah = ' ~ fmt.jt(st.change, true) ~ '. Sumbu tidak mulai dari nol.') }}</div>
+    <ol class="wf viz">
+      {% for r in bridge %}
+      <li class="wf-row {{ r.kind }}{% if r.kind == 'step' %} {{ 'up' if r.up else 'down' }}{% endif %}{% if loop.last %} curr{% endif %}{% if r.outlet_id %} is-top{% endif %}">
+        {% if r.kind == 'total' %}<span class="wf-lab">{{ r.label }}</span>
+        {% elif r.outlet_id %}<a class="wf-lab" href="/outlet/{{ r.outlet_id }}"><span class="t">{{ r.key }}</span></a>
+        {% else %}<a class="wf-lab" href="{{ qs(region=r.region) }}"><span class="t">{{ r.key }}</span>{% if r.rest %} <span class="muted">lainnya</span>{% endif %}</a>{% endif %}
+        <svg class="wf-bar" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          {% if r.get('from') is not none %}<line x1="{{ r['from'] }}" x2="{{ r['from'] }}" y1="0" y2="4" class="wf-link" vector-effect="non-scaling-stroke"></line>{% endif %}
+          <rect x="{{ r.x0 }}" width="{{ (r.x1 - r.x0)|round(2) }}" y="4" height="12" rx="1"></rect>
+          {% if r.kind == 'total' %}<line x1="2.2" x2="3.4" y1="17" y2="3" class="wf-break" vector-effect="non-scaling-stroke"></line>{% endif %}
+          {% if r.get('next') is not none %}<line x1="{{ r['next'] }}" x2="{{ r['next'] }}" y1="16" y2="20" class="wf-link" vector-effect="non-scaling-stroke"></line>{% endif %}
+        </svg>
+        <span class="wf-val">{% if r.kind == 'total' %}{{ fmt.jt(r.value) }}{% else %}{{ dlt(r.change) }}{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if st.top %}
+  {% set t = st.top %}
+  <section class="card c-top" aria-labelledby="h-top">
+    <div class="card-head"><h2 id="h-top">{{ icon('package') }} <a href="/outlet/{{ t.outlet_id }}">{{ t.outlet_name }}</a></h2>{{ info(t.outlet_name ~ ' (' ~ t.outlet_id ~ ', ' ~ t.outlet_type ~ ', ' ~ t.branch ~ ') naik ' ~ fmt.jt(t.change) ~ ' dan jadi ' ~ fmt.pct(t.share_of_curr_pct) ~ ' dari net ' ~ cm ~ '. Cek apakah barang terjual ke konsumen (sell-out) atau hanya menumpuk di gudang (stock-loading) sebelum dijadikan target.') }}</div>
+    <p class="v">{{ big(t.curr) }}{% if t.prev %} <span class="u">&times;{{ fmt._dec(t.curr / t.prev, 1) }}</span>{% endif %}</p>
+    {% set tmx = [t.prev, t.curr, 1]|max %}
+    <ul class="hb viz">
+      <li><span class="hb-l">{{ pm }}</span><svg class="hb-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect x="0" y="1" height="6" rx="3" width="{{ [t.prev / tmx * 100, 1]|max|round(1) }}" class="prev"></rect></svg><span class="num">{{ fmt.jt(t.prev) }}</span></li>
+      <li><span class="hb-l">{{ cm }}</span><svg class="hb-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect x="0" y="1" height="6" rx="3" width="{{ [t.curr / tmx * 100, 1]|max|round(1) }}" class="curr"></rect></svg><span class="num">{{ fmt.jt(t.curr) }}</span></li>
+    </ul>
+    <p class="mrow"><span title="Invoice {{ pm }} ke {{ cm }}">{{ icon('receipt', size=14) }} {{ t.invoices_prev }} &rarr; {{ t.invoices_curr }}</span><span title="Karton {{ pm }} ke {{ cm }}">{{ icon('boxes', size=14) }} {{ t.cartons_prev }} &rarr; {{ t.cartons_curr }}</span></p>
+    <p class="act">Cek sell-out vs stock-loading</p>
+  </section>
+  {% endif %}
+
+  <section class="card c-share" id="sec-brand" aria-labelledby="h-share">
+    {% set btot = brand_rows|sum(attribute='curr') or 1 %}{% set b1 = brand_rows[0] %}{% set b2 = brand_rows[1] if brand_rows|length > 1 else none %}{% set rest = btot - b1.curr - (b2.curr if b2 else 0) %}
+    <div class="card-head"><h2 id="h-share">{{ icon('tag') }} Porsi brand</h2><span class="meta">{{ cm }}</span></div>
+    <p class="v"><span class="n">{{ fmt._dec(b1.curr / btot * 100, 1) }}</span><span class="u">%</span></p>
+    <p class="s"><span class="vs">{{ b1.key }}</span></p>
+    {% set segs = [(b1, 'c-a', b1.curr)] + ([(b2, 'c-b', b2.curr)] if b2 else []) + ([(none, 'c-c', rest)] if rest > 0 else []) %}
+    <svg class="comp-bar viz" viewBox="0 0 200 6" preserveAspectRatio="none" aria-hidden="true" focusable="false">{% set ns = namespace(x=0.0) %}{% for b, cls, v in segs %}{% set w = v / btot * (200 - 4 * (segs|length - 1)) %}<rect x="{{ ns.x|round(2) }}" y="0" height="6" rx="3" width="{{ [w, 1]|max|round(2) }}" class="{{ cls }}"></rect>{% set ns.x = ns.x + w + 4 %}{% endfor %}</svg>
+    <ul class="legend-l">
+      {% for b, cls, v in segs %}<li><a href="{{ qs(brand=b.key) if b else qs() }}"{% if not b %} aria-disabled="true" tabindex="-1" class="nolink"{% endif %}><i class="dot {{ cls }}" aria-hidden="true"></i><span class="lg-n" title="{{ fmt.jt(v) }}">{{ b.key if b else 'Lainnya (' ~ (brand_rows|length - 2) ~ ')' }}</span><span class="num">{{ fmt.pct(v / btot * 100) }}</span></a></li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="card c-move" aria-labelledby="h-move">
+    {% set ups = brand_rows|selectattr('change', 'gt', 0)|sort(attribute='change', reverse=true)|list %}
+    {% set downs = brand_rows|selectattr('change', 'lt', 0)|sort(attribute='change')|list %}
+    {% set movers = ups[:2] + (downs[:2]|reverse|list) %}
+    {% set mmx = (movers|map(attribute='change')|map('abs')|max) if movers else 1 %}
+    <div class="card-head"><h2 id="h-move">{{ icon('tag') }} Brand bergerak</h2><span class="meta">{{ pm }} &rarr; {{ cm }}</span></div>
+    {% if st.worst_brand %}<p class="v">{{ dlt(st.worst_brand.pct, 'pct') }}</p><p class="s"><span class="vs">{{ st.worst_brand.key }}, turun terdalam</span></p>
+    {% else %}<p class="v">{{ dlt(ups[0].pct, 'pct') if ups else '' }}</p>{% endif %}
+    <ul class="mv viz">
+      {% for b in movers %}<li><a href="{{ qs(brand=b.key) }}"><span class="mv-l">{{ b.key }}</span>{{ dlt(b.change) }}<svg class="mv-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="50" x2="50" y1="0" y2="8" class="axis" vector-effect="non-scaling-stroke"></line><rect y="1" height="6" rx="3" x="{{ 50 if b.change >= 0 else (50 - (b.change|abs) / mmx * 48)|round(1) }}" width="{{ [(b.change|abs) / mmx * 48, 1]|max|round(1) }}" class="{{ 'up' if b.change >= 0 else 'down' }}"></rect></svg></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="card c-weak" id="sec-weak" aria-labelledby="h-weak">
+    <div class="card-head"><h2 id="h-weak">{{ icon('store') }} {{ weak|length }} outlet terlemah</h2><span class="meta">% median tipe</span><a class="hlink" href="/export/weakest.csv{{ qs() }}">CSV</a><button type="button" class="link hlink" data-open="def-drawer" aria-haspopup="dialog">Cara hitung</button>{{ info('Net outlet dibagi median net outlet bertipe sama (Grosir, Minimarket, Toko Kelontong, Warung). Indeks terendah paling lemah. Segitiga = catatan data. Kalender = unduh jadwal kunjungan (.ics), salin = teks tugas untuk salesman.') }}</div>
+    {% if weak %}
+    <table class="wt">
+      <thead class="sr-only"><tr><th scope="col">Peringkat</th><th scope="col">Outlet</th><th scope="col">Persen dari median tipe</th><th scope="col">Perubahan</th><th scope="col">Catatan data</th><th scope="col">Aksi</th></tr></thead>
+      <tbody>
+      {% for w in weak %}
+      <tr>
+        <td class="num w-rank">{{ w.rank }}</td>
+        <th scope="row"><a class="w-o" href="/outlet/{{ w.outlet_id }}"><span class="w-ic" title="{{ w.outlet_type }}">{{ icon(TYPE_ICON.get(w.outlet_type, 'store'), size=14) }}<span class="sr-only">{{ w.outlet_type }}</span></span><span class="w-n">{{ w.outlet_name }}</span></a></th>
+        <td class="w-b">{{ ticks(w.index_pct / 100, 20, 14, fmt.pct(w.index_pct, 0) ~ ' dari median ' ~ w.outlet_type ~ ' ' ~ fmt.jt(w.peer_median_idr)) }}<span class="w-idx num">{{ fmt.pct(w.index_pct, 0) }}</span></td>
+        <td class="num w-d">{{ dlt(w.mom_pct, 'pct', 0) }}</td>
+        <td class="w-flag">{% if w.notes %}<button type="button" class="info flag" data-tip="{{ w.notes|join(' ') }}" aria-label="Catatan data: {{ w.notes|join(' ') }}">{{ icon('triangle-alert', size=16) }}</button>{% endif %}</td>
+        <td class="w-act"><a class="btn-sec sm" href="/outlet/{{ w.outlet_id }}/kunjungan.ics{{ qs() }}" download="kunjungan-{{ w.outlet_id }}.ics" aria-label="Jadwalkan kunjungan {{ w.outlet_name }} (.ics)" title="Jadwalkan kunjungan (.ics)">{{ icon('calendar-plus', size=16) }}</a><button type="button" class="btn-sec sm" data-copy="{{ tasks[w.outlet_id] }}" data-status="weak-status" aria-label="Salin tugas {{ w.outlet_name }}" title="Salin tugas">{{ icon('copy', size=16) }}</button></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Tidak ada outlet di bawah median tipe. Ganti periode atau hapus filter.</p>
     {% endif %}
-    </main>
-    {% include "_footer.html" %}
-  </div>
+    <p class="card-foot" id="weak-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card c-ctn" aria-labelledby="h-ctn">
+    <div class="card-head"><h2 id="h-ctn">{{ icon('boxes') }} Karton {{ cm or period_label }}</h2>{% if st %}<span class="meta">vs {{ pm }}</span>{% endif %}</div>
+    {% if st %}
+    <p class="v"><span class="n">{{ '{:,}'.format(st.cartons_curr).replace(',', '.') }}</span></p>
+    <p class="s">{{ dlt(an._pct(st.cartons_curr, st.cartons_prev), 'pct') }}</p>
+    {% set cmx = [st.cartons_prev, st.cartons_curr, 1]|max %}
+    <ul class="hb viz">
+      <li><span class="hb-l">{{ pm }}</span><svg class="hb-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect x="0" y="1" height="6" rx="3" width="{{ (st.cartons_prev / cmx * 100)|round(1) }}" class="prev"></rect></svg><span class="num">{{ '{:,}'.format(st.cartons_prev).replace(',', '.') }}</span></li>
+      <li><span class="hb-l">{{ cm }}</span><svg class="hb-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect x="0" y="1" height="6" rx="3" width="{{ (st.cartons_curr / cmx * 100)|round(1) }}" class="curr"></rect></svg><span class="num">{{ '{:,}'.format(st.cartons_curr).replace(',', '.') }}</span></li>
+    </ul>
+    {% else %}
+    <p class="v"><span class="n">{{ '{:,}'.format(kpis.qty_carton).replace(',', '.') }}</span></p>
+    {% endif %}
+  </section>
+
+  <section class="card c-dq" aria-labelledby="h-dq">
+    {% set m = ds.result.meta %}
+    <div class="card-head"><h2 id="h-dq">{{ icon('shield-check') }} Kualitas data</h2><span class="meta">{{ rule_count }} aturan</span></div>
+    <p class="v"><span class="n">{{ '{:,}'.format(m.rows_clean).replace(',', '.') }}</span> <span class="u">baris</span></p>
+    <p class="s"><span class="vs">{{ m.rows_quarantined }} karantina &middot; {{ kpis.return_lines }} retur</span></p>
+    <p class="viz tm-row">{{ ticks(m.rows_clean / m.rows_in if m.rows_in else 0, 30, 14, fmt.pct(m.rows_clean / m.rows_in * 100 if m.rows_in else 0) ~ ' baris bersih') }}<span class="num">{{ fmt.pct(m.rows_clean / m.rows_in * 100 if m.rows_in else 0) }}</span></p>
+    <button type="button" class="btn-sec wide" data-open="dq-drawer" aria-haspopup="dialog">{{ icon('shield-check', size=16) }} Rincian</button>
+  </section>
+
+  <section class="card c-tg" aria-labelledby="h-tg">
+    <div class="card-head"><h2 id="h-tg">{{ icon('send') }} Telegram</h2><span class="meta">{{ summary.text|length }} karakter</span></div>
+    <p class="v"><span class="n">{{ summary_checked }}</span> <span class="u">angka dicek</span></p>
+    <p class="s"><span class="dl up"><span class="ar" aria-hidden="true">&#10003;</span> semua cocok dengan data</span></p>
+    <button type="button" class="btn-primary wide" data-open="tg-drawer" aria-haspopup="dialog">{{ icon('send', size=16) }} Buka ringkasan</button>
+  </section>
+  {% endif %}
+  </main>
+  {% include "_footer.html" %}
 </div>
 
+{% if ds and summary %}
+<dialog id="tg-drawer" class="drawer" aria-labelledby="tg-title">
+  <div class="drawer-head"><h2 id="tg-title">{{ icon('send', size=16) }} Ringkasan Telegram <span class="per">{{ period_label }}</span></h2><button type="button" class="close" data-close aria-label="Tutup">&times;</button></div>
+  <div class="tgwin">
+    <div class="tg-head">
+      <span class="bot-ava"><img src="/static/img/logo-white.png" alt="" width="30" height="18"></span>
+      <p><strong>Dua Kelinci Sales Bot</strong><span>bot</span></p>
+    </div>
+    <div class="tg-body">
+      <div class="bubble"><p id="tg-text">{{ summary.text }}</p><p class="bubble-meta">{{ summary.text|length }} karakter &middot; <time>{{ now_hm }}</time></p></div>
+    </div>
+  </div>
+  <p class="small">{{ icon('shield-check', size=14) }} Angka dicek otomatis{% if summary.source == 'llm' %}, bahasa dirapikan AI{% endif %}.</p>
+  <div class="row">
+    {% if user.can_send_telegram() and telegram_enabled %}<button type="button" class="btn-primary js-tg-send" data-period="{{ period }}">{{ icon('send', size=16) }} Kirim ke Telegram</button>{% endif %}
+    <button type="button" class="btn-sec" id="copy-btn" data-copy-target="tg-text" data-status="tg-status">{{ icon('copy', size=16) }} Salin</button>
+    <a class="btn-sec" href="/summary/print{{ qs() }}" target="_blank" rel="noopener">{{ icon('printer', size=16) }} Cetak</a>
+  </div>
+  <p id="tg-status" class="small" role="status" aria-live="polite">{% if not telegram_enabled %}Telegram belum diatur: salin lalu tempel di grup.{% endif %}</p>
+</dialog>
+{% endif %}
 {% if ds %}
 <dialog id="chat-drawer" class="drawer" aria-labelledby="chat-title">
   <div class="drawer-head"><h2 id="chat-title">Tanya data</h2><button type="button" class="close" data-close aria-label="Tutup">&times;</button></div>

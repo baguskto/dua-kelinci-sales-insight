@@ -47,6 +47,32 @@ def rupiah_short_parts(n: float | int) -> tuple[str, str]:
     return num, unit
 
 
+MINUS = "\u2212"
+
+
+def jt(n: float | int, signed: bool = False) -> str:
+    """Dashboard number format, always in juta with one decimal: Rp 878,4 jt, −Rp 23,2 jt, +Rp 47,7 jt."""
+    sign, num, unit = jt_parts(n, signed)
+    return f"{sign}Rp {num} {unit}"
+
+
+def jt_parts(n: float | int, signed: bool = False) -> tuple[str, str, str]:
+    """jt() split into sign, number and unit, so the big number and its unit can be set at different sizes."""
+    v = round(float(n) / 1e6, 1)
+    sign = MINUS if v < 0 else ("+" if signed and v > 0 else "")
+    whole, _, dec = f"{abs(v):,.1f}".partition(".")
+    return sign, f"{whole.replace(',', '.')},{dec}", "jt"
+
+
+def spct(v: float | None, digits: int = 1) -> str:
+    """Signed percent with a real minus sign for the dashboard: +3,6%, −0,2%."""
+    if v is None:
+        return "-"
+    r = round(v, digits)
+    sign = MINUS if r < 0 else ("+" if r > 0 else "")
+    return f"{sign}{abs(r):.{digits}f}".replace(".", ",") + "%"
+
+
 def _dec(v: float, digits: int) -> str:
     s = f"{v:.{digits}f}"
     if digits:
