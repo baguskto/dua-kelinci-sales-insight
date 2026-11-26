@@ -108,3 +108,49 @@ Logo -> /; first Tab -> "Skip to content"
 Upload a broken file -> "File rejected." and the dashboard keeps Rp 878.4M (e2e)
 Console errors: none
 ```
+
+## Static export for GitHub Pages (27 Nov 2026, branch feat/pages-clickable)
+
+antislop active: during (global preference). Same direction (DESIGN.md) and dials (ENERGY 2 / RHYTHM 2 / MOTION 1); no new visual element except one footer line and a visible label in the chat drawer.
+
+Before: Pages showed one frozen page and every control that needed the server was disabled ("kok gabisa diklik webnya?"). After: the app renders every GET view with `static_export=True`, `dk_sales.web.static_site` maps each URL to a file and rewrites links relative to the page, so period chips, both selects, filter chips, map bubbles, bridge and outlet links, .ics, CSV and print all work on GitHub Pages with real data.
+
+| Rule | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | No U+2014 in the new templates, scripts or the built `index.html`. |
+| R-03 mobile | PASS | `click_site.py` at 390x844 on 3 views (default, Oct + West Java, Sep + Sukro): no element outside its card, scrollWidth = viewport. The footer line wraps to 3 lines. |
+| R-17 / R-36 / R-38 data | PASS | Every page, CSV, .ics and chat answer is produced by the app and the real offline engine on sales.csv at build time; nothing is typed in by hand. The chat drawer says the saved answers cover the whole file, not the filters of the view (the engine reads the whole file in the live app too). |
+| R-24 / R-26 controls | PASS | No dead control: free chat questions are a disabled input whose visible label reads "Free questions need the local app"; upload is replaced by "Uploading needs the local app"; Telegram send is not rendered and the drawer says "Sending needs the local app with a Telegram bot: copy and paste into the group."; sign-out is not rendered. The filter form has no Apply button and no action in the export (options carry their URL in `data-href`). |
+| R-27 states | PASS | Saved chat answers: "Working..." while the JSON loads, "Could not load the saved answers. Reload the page and try again." on a failed fetch, "No saved answer for this question" for an unknown question. Empty filter views are rendered by the app's own empty state. |
+| R-33 no patch scripts | PASS | The old build froze the page with injected JS and appended CSS to app.css. Now the static behaviour lives in source (templates behind `static_export`, `app.js` reads `data-answers`, CSS in `app.css`, font URL made relative in `app.css`). The build only rewrites URLs for hosting under a subpath, a tested pure function (`tests/test_static_site.py`). |
+| R-35 verified | PASS | Crawl and click-through below; 0 console errors; full test suite green. |
+| R-39 semantics | PASS | Disabled input and button show `cursor: not-allowed`; the label is a real `<label for>`; each view has its own `<title>` ("September 2026, West Java, Sukro - Dua Kelinci Sales"). |
+| R-40 performance | PASS | No new media or third-party script. Sizes measured with `du`: 868 files, 13.1 MB; a dashboard page is 93 KB. Web Vitals not measured. |
+
+Crawl (`check_site.py _site`, from the root, href/src/data-href/data-answers and CSS url()): 841 URLs reached, 244 HTML pages, 0 broken, 0 app URLs left.
+
+Click-through (`click_site.py`, Chromium, `python -m http.server` with the site under `/dua-kelinci-sales-insight/`):
+
+```
+PASS  period chips: Oct -> v/2026-10/all/all/, Sep -> v/2026-09/all/all/, Sep-Oct -> root
+PASS  region select: West Java -> v/all/jawa-barat/all/, chip shown
+PASS  brand select: Sukro -> v/all/jawa-barat/sukro/, two chips, title 'Sep-Oct 2026, West Java, Sukro - Dua Kelinci Sales'
+PASS  filter chip remove: remove West Java -> v/all/all/sukro/
+PASS  map bubble: W. Java bubble -> v/all/jawa-barat/all/
+PASS  bridge outlet link: bridge label -> outlet/OUT1036/
+PASS  outlet row: 'Toko Sinar Abadi' -> outlet/OUT1003/ -> back to dashboard
+PASS  visit .ics: download visit-OUT1003.ics, VCALENDAR with SUMMARY
+PASS  CSV export: download dua-kelinci-weakest-all.csv, 20 rows
+PASS  drawers: open + Escape: #dq-drawer, #def-drawer, #tg-drawer; close button works
+PASS  print summary: Print -> print/all/, same text as the drawer
+PASS  copy summary: clipboard = summary text
+PASS  copy task: clipboard = 'Visit task: Toko Sinar Abadi (OUT1003), ...'
+PASS  tooltips: info tip shows on hover; line chart tip follows Home key
+PASS  chat examples: 5 example questions answered from saved engine output; free text disabled with visible label
+PASS  screenshots 1440 + 390: no clipping, no horizontal scroll: default-1440, oct-west-java-1440, sep-sukro-1440, default-390, oct-west-java-390, sep-sukro-390
+console/page/HTTP errors: 0
+```
+
+Kept as the app does it (not changed here): the CSV export and the print summary follow the period only, not the region or brand filter, on the server as in the export.
+
+Result: **PASS**, no open FAIL.
