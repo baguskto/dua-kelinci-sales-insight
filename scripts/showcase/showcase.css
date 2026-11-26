@@ -1,0 +1,6 @@
+/* Capture-only (see showcase.js). 3D stage for the isometric variant. */
+html.iso, html.iso body { height: 100%; overflow: hidden; background: var(--canvas); }
+html.iso body { perspective: 2600px; perspective-origin: 50% 40%; }
+html.iso .page { transform-style: preserve-3d; transform-origin: 50% 50%; background: var(--zinc-50); border-radius: 16px; outline: 1px solid var(--zinc-300); }
+html.iso .grid { transform-style: preserve-3d; }
+html.iso .card { transform-style: preserve-3d; backface-visibility: hidden; }

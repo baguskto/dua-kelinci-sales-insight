@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dua Kelinci Sales: one-screen dashboard</title>
+<meta name="description" content="A one-screen sales dashboard for a Commercial Director: what changed, is it real, where it came from, what to decide.">
+<link rel="preload" href="dashboard/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="dashboard/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="top">
+  <img src="dashboard/static/img/logo-red.png" alt="Dua Kelinci" width="52" height="31">
+  <p class="name">Dua Kelinci Sales</p>
+  <nav aria-label="Sections"><a href="#shot">Shot</a><a href="#motion">Motion</a><a href="dashboard/">Live snapshot</a><a href="https://github.com/baguskto/dua-kelinci-sales-insight">Repo</a></nav>
+</header>
+<main>
+  <section class="hero" id="shot" aria-labelledby="h-shot">
+    <h1 id="h-shot">Sales dashboard for a Commercial Director</h1>
+    <p class="meta">October vs September from <code>sales.csv</code>: net sales <b>+3.6%</b>, <b>&minus;0.2%</b> per trading day, <b>&minus;2.0%</b> without one outlet, 4 of 6 regions down.</p>
+    <img class="shot" src="media/shot-2x-1920x1600.png" alt="Dashboard detail at 2x: cumulative net sales line chart with tooltip, growth without the top outlet, trading-day ticks, the Sep to Oct bridge by region, the Grosir Lancar Jaya card and the five weakest outlets" width="1920" height="1600" fetchpriority="high">
+  </section>
+  <section id="motion" aria-labelledby="h-motion">
+    <h2 id="h-motion">Motion studies</h2>
+    <p class="meta">Showcase only. The app itself has no entrance animation: it is a daily work tool and the numbers should be there at once.</p>
+    <div class="videos">
+      <figure>
+        <video src="media/cards-stagger.mp4" poster="media/cards-stagger.jpg" width="1440" height="900" muted loop playsinline autoplay preload="metadata"></video>
+        <figcaption>Cards stagger, 90 ms apart</figcaption>
+      </figure>
+      <figure>
+        <video src="media/isometric-lift.mp4" poster="media/isometric-lift.jpg" width="1440" height="900" muted loop playsinline autoplay preload="metadata"></video>
+        <figcaption>Isometric lift of the four story cards</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="cta" aria-labelledby="h-live">
+    <h2 id="h-live">Static snapshot</h2>
+    <p class="meta">The dashboard exported with real data. Filters, chat, upload and Telegram need the server; run the full app offline with two commands from the repo.</p>
+    <p><a class="btn" href="dashboard/">Open snapshot</a> <a class="btn-sec" href="https://github.com/baguskto/dua-kelinci-sales-insight#menjalankan-python-311-atau-lebih-baru-macos-atau-windows">Run the app</a></p>
+  </section>
+</main>
+<footer class="foot"><p>The Dua Kelinci name and logo belong to PT Dua Kelinci and are used only for a recruitment test. Map outline: Natural Earth. Icons: Lucide (ISC). Font: Plus Jakarta Sans (OFL).</p></footer>
+<script src="site.js"></script>
+</body>
+</html>

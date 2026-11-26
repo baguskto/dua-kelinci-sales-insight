@@ -24,3 +24,4 @@ var/
 ops/secrets/*
 !ops/secrets/.gitkeep
 ops/grafana/provisioning/alerting/contactpoints.yaml
+_site/
