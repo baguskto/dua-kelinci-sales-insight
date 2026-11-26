@@ -118,7 +118,7 @@ Before: Pages showed one frozen page and every control that needed the server wa
 | Rule | Status | Evidence |
 |---|---|---|
 | R-02 em dash | PASS | No U+2014 in the new templates, scripts or the built `index.html`. |
-| R-03 mobile | PASS | `click_site.py` at 390x844 on 3 views (default, Oct + West Java, Sep + Sukro): no element outside its card, scrollWidth = viewport. The footer line wraps to 3 lines. |
+| R-03 mobile | PASS | `click_site.py` checks all 189 views at 1440x900 and 390x844: no element outside its card, no overlap between cells of a table row, scrollWidth = viewport. The footer line wraps to 3 lines. The first live check found a collision the old checks missed: in Sep views the weakest-outlets meter label ("14%") ran into a long change value ("+1410%"), and on phones the data-note button's 44px tap area reached 7px into the .ics button. Fixed in app.css (the name column takes the squeeze with an ellipsis; on phones the note button sits in the action row); the overlap check is now part of the sweep. |
 | R-17 / R-36 / R-38 data | PASS | Every page, CSV, .ics and chat answer is produced by the app and the real offline engine on sales.csv at build time; nothing is typed in by hand. The chat drawer says the saved answers cover the whole file, not the filters of the view (the engine reads the whole file in the live app too). |
 | R-24 / R-26 controls | PASS | No dead control: free chat questions are a disabled input whose visible label reads "Free questions need the local app"; upload is replaced by "Uploading needs the local app"; Telegram send is not rendered and the drawer says "Sending needs the local app with a Telegram bot: copy and paste into the group."; sign-out is not rendered. The filter form has no Apply button and no action in the export (options carry their URL in `data-href`). |
 | R-27 states | PASS | Saved chat answers: "Working..." while the JSON loads, "Could not load the saved answers. Reload the page and try again." on a failed fetch, "No saved answer for this question" for an unknown question. Empty filter views are rendered by the app's own empty state. |
@@ -148,6 +148,7 @@ PASS  copy task: clipboard = 'Visit task: Toko Sinar Abadi (OUT1003), ...'
 PASS  tooltips: info tip shows on hover; line chart tip follows Home key
 PASS  chat examples: 5 example questions answered from saved engine output; free text disabled with visible label
 PASS  screenshots 1440 + 390: no clipping, no horizontal scroll: default-1440, oct-west-java-1440, sep-sukro-1440, default-390, oct-west-java-390, sep-sukro-390
+PASS  every view, 1440 + 390: 189 views x 2 widths: nothing clipped, overlapping or scrolling sideways
 console/page/HTTP errors: 0
 ```
 
