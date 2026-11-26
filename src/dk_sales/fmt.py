@@ -47,30 +47,77 @@ def rupiah_short_parts(n: float | int) -> tuple[str, str]:
     return num, unit
 
 
-MINUS = "\u2212"
+MINUS = "−"
+
+# -- English dashboard format (the UI is in English; the chat and the data files stay Indonesian) ----------
+MONTH_EN = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun", 7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
+MONTH_EN_LONG = {
+    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
+}
+# Standard English names where one exists; the data keeps the Indonesian value (filters use it).
+REGION_EN = {"Jawa Barat": "West Java", "Jawa Tengah": "Central Java", "Jawa Timur": "East Java", "Sumatera": "Sumatra"}
+REGION_EN_SHORT = {"Jabodetabek": "Jabo", "Jawa Barat": "W. Java", "Jawa Tengah": "C. Java", "Jawa Timur": "E. Java"}
 
 
-def jt(n: float | int, signed: bool = False) -> str:
-    """Dashboard number format, always in juta with one decimal: Rp 878,4 jt, −Rp 23,2 jt, +Rp 47,7 jt."""
-    sign, num, unit = jt_parts(n, signed)
-    return f"{sign}Rp {num} {unit}"
+def rpm(n: float | int, signed: bool = False) -> str:
+    """Dashboard money format, always in millions with one decimal: Rp 878.4M, −Rp 23.2M, +Rp 47.7M."""
+    sign, num, unit = rpm_parts(n, signed)
+    return f"{sign}Rp {num}{unit}"
 
 
-def jt_parts(n: float | int, signed: bool = False) -> tuple[str, str, str]:
-    """jt() split into sign, number and unit, so the big number and its unit can be set at different sizes."""
+def rpm_parts(n: float | int, signed: bool = False) -> tuple[str, str, str]:
+    """rpm() split into sign, number and unit, so the big number and its unit can be set at different sizes."""
     v = round(float(n) / 1e6, 1)
     sign = MINUS if v < 0 else ("+" if signed and v > 0 else "")
-    whole, _, dec = f"{abs(v):,.1f}".partition(".")
-    return sign, f"{whole.replace(',', '.')},{dec}", "jt"
+    return sign, f"{abs(v):,.1f}", "M"
 
 
 def spct(v: float | None, digits: int = 1) -> str:
-    """Signed percent with a real minus sign for the dashboard: +3,6%, −0,2%."""
+    """Signed percent with a real minus sign: +3.6%, −0.2%."""
     if v is None:
         return "-"
     r = round(v, digits)
     sign = MINUS if r < 0 else ("+" if r > 0 else "")
-    return f"{sign}{abs(r):.{digits}f}".replace(".", ",") + "%"
+    return f"{sign}{abs(r):.{digits}f}%"
+
+
+def epct(v: float | None, digits: int = 1) -> str:
+    """Unsigned percent, English decimal point: 8.6%."""
+    return "-" if v is None else f"{v:.{digits}f}%"
+
+
+def num(n: float | int) -> str:
+    """Whole number with a thousands comma: 4,427 (a real minus sign when negative)."""
+    n = int(round(n))
+    return f"{MINUS if n < 0 else ''}{abs(n):,}"
+
+
+def mon(ym: str) -> str:
+    return MONTH_EN[int(ym[5:7])]
+
+
+def mon_long(ym: str) -> str:
+    return f"{MONTH_EN_LONG[int(ym[5:7])]} {ym[:4]}"
+
+
+def period_en(period: str, months: list[str]) -> str:
+    if period != "all":
+        return mon_long(period)
+    if not months:
+        return "-"
+    if len(months) == 1:
+        return mon_long(months[0])
+    a, b = months[0], months[-1]
+    return f"{mon(a)}-{mon(b)} {b[:4]}" if a[:4] == b[:4] else f"{mon(a)} {a[:4]} - {mon(b)} {b[:4]}"
+
+
+def region(name: str) -> str:
+    return REGION_EN.get(name, name)
+
+
+def region_short(name: str) -> str:
+    return REGION_EN_SHORT.get(name, region(name))
 
 
 def _dec(v: float, digits: int) -> str:

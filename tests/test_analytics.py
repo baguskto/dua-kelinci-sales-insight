@@ -87,19 +87,22 @@ def test_fmt():
     assert fmt.period_label("all", ["2026-09", "2026-10"]) == "Sep-Okt 2026"
 
 
-def test_summary_is_short_grounded_plain_text(ds):
+def test_summary_leads_with_the_insight_and_stays_short(ds):
     s = summary.build(ds.fact, ds.dim_outlet)
-    assert len(s.text) <= summary.TELEGRAM_MAX_CHARS
+    assert len(s.text) <= summary.TARGET_CHARS
     assert "\n" not in s.text and "*" not in s.text and "|" not in s.text
-    for must in ["Rp1,73 miliar", "Jabodetabek", "Kalimantan", "Kacang Dua Kelinci", "Roni", "OUT1003", "naik 3,6%", "per hari kerja -0,2%"]:
+    assert s.text.startswith("Dua Kelinci, Okt vs Sep: net Rp 878,4 jt (+3,6%), tapi tanpa Grosir Lancar Jaya (+Rp 47,7 jt) turun 2,0%")
+    for must in ["per hari kerja \u22120,2%", "4 dari 6 region turun", "Jawa Barat \u2212Rp 23,2 jt", "Pilus \u221212,2%", "OUT1003", "OUT1035", "di luar urutan"]:
         assert must in s.text
     assert guard.check(s.text, s.facts, s.pct_facts).ok
 
 
 def test_summary_scoped(ds):
     s = summary.build(an.Scope(regions=frozenset({"Jawa Barat"})).apply(ds.fact), ds.dim_outlet, "Region Jawa Barat")
-    assert "Jabodetabek" not in s.text and "Cabang terbesar" in s.text
+    assert "Jabodetabek" not in s.text and s.text.startswith("Dua Kelinci Region Jawa Barat, Okt vs Sep: net Rp 143,9 jt (\u221213,9%)")
     assert guard.check(s.text, s.facts, s.pct_facts).ok
+    sep = summary.build(ds.fact, ds.dim_outlet, "", "2026-09")
+    assert sep.text.startswith("Dua Kelinci, September 2026: net Rp 847,5 jt.") and guard.check(sep.text, sep.facts, sep.pct_facts).ok
 
 
 @pytest.mark.parametrize(
@@ -146,30 +149,63 @@ def test_cumulative_keeps_calendar_length_when_a_filter_has_no_sales_at_month_en
     assert len(roni[0]["values"]) == 30  # September has 30 days even if Roni has no sale on the 29th and 30th
 
 
-def test_cumulative_insight_sentences(ds):
-    assert an.cumulative_insight(an.cumulative(ds.fact)) == (
-        "Sampai tanggal 30 Oktober masih Rp6,9 juta di bawah September; tanggal 31, yang tidak ada di September, "
-        "membuat Oktober menutup bulan Rp30,9 juta di atas September."
-    )
+def test_story_matches_the_month_on_month_numbers(ds):
+    st = an.story(ds.fact, ds.dim_outlet)
+    assert (st["prev_month"], st["curr_month"]) == ("2026-09", "2026-10")
+    assert (st["prev"], st["curr"], st["change"], st["pct"]) == (847_517_400, 878_448_600, 30_931_200, 3.65)
+    assert (st["prev_trading_days"], st["curr_trading_days"], st["per_day_pct"]) == (26, 27, -0.19)
+    assert (st["regions_down"], st["regions_total"]) == (4, 6)
+    assert st["worst_region"]["key"] == "Jawa Barat" and st["worst_region"]["change"] == -23_181_700
+    assert st["worst_brand"]["key"] == "Pilus" and st["worst_brand"]["change"] == -4_659_900
+    assert (st["cartons_prev"], st["cartons_curr"]) == (4_318, 4_427)
+
+
+def test_top_contributor_and_growth_without_it(ds):
+    st = an.story(ds.fact, ds.dim_outlet)
+    top = st["top"]
+    assert (top["outlet_id"], top["outlet_name"], top["region"]) == ("OUT1036", "Grosir Lancar Jaya", "Jawa Timur")
+    assert (top["prev"], top["curr"], top["change"]) == (28_296_400, 75_962_600, 47_666_200)
+    assert (top["invoices_prev"], top["invoices_curr"], top["cartons_prev"], top["cartons_curr"]) == (9, 18, 143, 415)
+    assert fmt.pct(top["share_of_curr_pct"]) == "8,6%"
+    assert top["share_of_change_pct"] > 100  # one outlet adds more than the whole business
+    assert st["ex_top"] == {"prev": 819_221_000, "curr": 802_486_000, "change": -16_735_000, "pct": -2.04}
+
+
+def test_top_contributor_follows_the_direction_of_the_total(ds):
+    # Jawa Barat fell, so its top contributor is the outlet that fell most, and without it the region grew.
+    st = an.story(ds.fact[ds.fact["region"] == "Jawa Barat"], ds.dim_outlet)
+    assert st["change"] < 0 and st["top"]["change"] < 0
+    assert st["ex_top"]["change"] > 0
+
+
+def test_bridge_steps_sum_exactly_to_the_total_change(ds):
     end = ds.fact["date"].max()
-    jatim = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jawa Timur"], end))
-    assert jatim.startswith("Oktober selalu di atas September sejak tanggal 1")
-    jabar = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jawa Barat"], end))
-    assert jabar == "Oktober tertinggal dari September sepanjang bulan dan menutup bulan Rp23,2 juta di bawah September."
-    jabo = an.cumulative_insight(an.cumulative(ds.fact[ds.fact["region"] == "Jabodetabek"], end))
-    assert jabo.startswith("Oktober menyalip September pada tanggal 13")
-    assert an.cumulative_insight([]) == ""
+    for f in (ds.fact, ds.fact[ds.fact["region"] == "Jawa Timur"], ds.fact[ds.fact["brand"] == "Sukro"], ds.fact[ds.fact["region"] == "Jawa Barat"]):
+        st = an.story(f, ds.dim_outlet)
+        steps = st["bridge"]
+        assert sum(s["change"] for s in steps) == st["change"]
+        assert steps[0]["start"] == st["prev"] and steps[-1]["end"] == st["curr"]
+        assert all(a["end"] == b["start"] for a, b in zip(steps, steps[1:], strict=False))
+    assert end is not None
 
 
-def test_cumulative_insight_notes_the_extra_trading_day(ds):
-    insight = an.cumulative_insight(an.cumulative(ds.fact), an.mom(ds.fact))
-    assert insight.endswith(
-        "Kenaikan +3,6% Oktober ini datang dari satu hari kerja tambahan (27 vs 26 hari kerja), bukan dari laju harian yang lebih tinggi: per hari kerja -0,2%."
-    )
+def test_bridge_splits_the_top_outlet_out_of_its_region(ds):
+    st = an.story(ds.fact, ds.dim_outlet)
+    by_key = {s["key"]: s["change"] for s in st["bridge"]}
+    assert by_key["Grosir Lancar Jaya"] == 47_666_200
+    assert by_key["Jawa Timur"] == 66_775_700 - 47_666_200
+    assert [s["key"] for s in st["bridge"]][:3] == ["Grosir Lancar Jaya", "Jawa Timur", "Jabodetabek"]
 
 
-def test_short_headline(ds):
-    weak = an.weakest_outlets(ds.fact, ds.dim_outlet, "all", 5)
-    assert an.short_headline(ds.fact, weak) == "Oktober naik 3,6% (per hari kerja -0,2%) · 5 outlet perlu dikunjungi"
-    jabar = ds.fact[ds.fact["region"] == "Jawa Barat"]
-    assert an.short_headline(jabar, []).startswith("Oktober turun 13,9%")
+def test_story_needs_a_previous_month(ds):
+    assert an.story(ds.fact, ds.dim_outlet, "2026-09") is None
+    assert an.compare_months(ds.fact, "2026-10") == ("2026-09", "2026-10")
+    assert an.story(ds.fact[ds.fact["year_month"] == "2026-10"], ds.dim_outlet) is None
+
+
+def test_dashboard_number_format():
+    assert fmt.jt(878_448_600) == "Rp 878,4 jt"
+    assert fmt.jt(-23_181_700, signed=True) == "\u2212Rp 23,2 jt"
+    assert fmt.jt(47_666_200, signed=True) == "+Rp 47,7 jt"
+    assert fmt.jt(1_725_966_000) == "Rp 1.726,0 jt"
+    assert fmt.spct(-0.19) == "\u22120,2%" and fmt.spct(3.65) == "+3,6%" and fmt.spct(0.01) == "0,0%"
