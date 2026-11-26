@@ -13,7 +13,11 @@
   }
 
   // -- filters ---------------------------------------------------------------
-  document.querySelectorAll(".filt select").forEach((s) => s.addEventListener("change", () => s.form.submit()));
+  // Each option carries the URL of its view, so the same code works on the server and on the static export.
+  document.querySelectorAll(".filt select").forEach((s) => s.addEventListener("change", () => {
+    const href = s.selectedOptions[0] && s.selectedOptions[0].dataset.href;
+    if (href) window.location.href = href; else s.form.submit();
+  }));
 
   // -- drawers --------------------------------------------------------------
   document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", (ev) => {
@@ -71,13 +75,29 @@
   // -- chat -------------------------------------------------------------------
   const form = document.getElementById("chat-form");
   const log = document.getElementById("chat-log");
+  // Static export: no server, so the example questions read answers the real engine gave at build time.
+  const savedUrl = document.getElementById("chat-drawer")?.dataset.answers;
+  let saved = null;
+  async function savedAnswer(q) {
+    try {
+      if (!saved) {
+        const r = await fetch(savedUrl);
+        if (!r.ok) throw new Error(String(r.status));
+        saved = await r.json();
+      }
+    } catch (_) {
+      return { ok: false, status: 0, data: { error: "Could not load the saved answers. Reload the page and try again." } };
+    }
+    const d = saved[q];
+    return d ? { ok: true, status: 200, data: d } : { ok: false, status: 404, data: { error: "No saved answer for this question. Free questions need the local app." } };
+  }
   async function ask(q) {
     if (!q.trim()) return;
     const qEl = el("div", "msg q", q);
     log.prepend(qEl);
     const aEl = el("div", "msg a", "Working...");
     qEl.after(aEl);
-    const r = await postJSON("/api/chat", { question: q });
+    const r = savedUrl ? await savedAnswer(q) : await postJSON("/api/chat", { question: q });
     aEl.textContent = "";
     if (!r.ok) {
       aEl.classList.add("refusal");

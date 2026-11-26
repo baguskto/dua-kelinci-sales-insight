@@ -4,7 +4,7 @@
    One sans family (Plus Jakarta Sans), weights 400 and 500. Identity motif: thin vertical tick meters. */
 @font-face {
   font-family: "Plus Jakarta Sans";
-  src: url("/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  src: url("fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
   font-weight: 200 800;
   font-style: normal;
   font-display: swap;
@@ -275,6 +275,9 @@ a.wf-lab:hover .t { text-decoration: underline; }
 .close { font-size: 22px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
 input[type="text"], input:not([type]), input[type="password"] { font: inherit; padding: 0 14px; border: 1px solid var(--dash); border-radius: var(--r-btn); background: #fff; color: var(--ink); flex: 1; min-width: 160px; min-height: 44px; }
 input[type="file"] { font: inherit; font-size: 14px; max-width: 100%; }
+input:disabled { background: var(--sec); cursor: not-allowed; }
+/* Static export (GitHub Pages): what needs the local app says so in words, next to the control. */
+.chat-local { flex-basis: 100%; font-size: 14px; font-weight: 500; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .chip { font-size: 13px; padding: 0 12px; min-height: 36px; }
 .chat-log { display: flex; flex-direction: column; gap: 10px; }
@@ -302,6 +305,8 @@ details { font-size: 14px; }
 .stack label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 500; }
 progress { width: 160px; accent-color: var(--accent); }
 .foot { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; color: var(--muted-on-canvas); font-size: 12px; padding: 6px 12px 4px; }
+.foot-static { flex-basis: 100%; text-align: center; }
+.foot code { font: inherit; font-weight: 500; color: var(--ink); }
 
 /* -- simple pages (login, outlet, error, print) ----------------------------- */
 .simplebar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); }

@@ -24,6 +24,7 @@
 <svg class="{{ cls }}" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect y="3" height="6" rx="1.5" x="{{ 50 if v >= 0 else (50 - (v|abs) / mx * 48)|round(1) }}" width="{{ [(v|abs) / mx * 48, 1]|max|round(1) }}" class="{{ 'up' if v >= 0 else 'down' }}"></rect><line x1="50" x2="50" y1="0" y2="12" class="zero" vector-effect="non-scaling-stroke"></line></svg>
 {%- endmacro %}
 
+{% block title %}{% if ds %}{{ period_label }}{% for k, v in filters.items() %}, {{ fmt.region(v) if k == 'region' else v }}{% endfor %} - {% endif %}Dua Kelinci Sales{% endblock %}
 {% block bodyclass %}dash{% endblock %}
 
 {% block body %}
@@ -37,19 +38,19 @@
         {% for m in months %}<a href="{{ qs(m) }}" {% if period == m %}aria-current="page"{% endif %}>{{ fmt.mon(m) }}</a>{% endfor %}
         {% if months|length > 1 %}<a href="{{ qs('all') }}" {% if period == 'all' %}aria-current="page"{% endif %}>{{ fmt.mon(months[0]) }}&ndash;{{ fmt.mon(months[-1]) }}</a>{% endif %}
       </nav>
-      <form class="filt" method="get" action="/" aria-label="Filters">
+      <form class="filt"{% if not static_export %} method="get" action="/"{% endif %} aria-label="Filters">
         <input type="hidden" name="period" value="{{ period }}">
         <label class="sr-only" for="f-region">Region</label>
         <select id="f-region" name="region">
-          <option value="">All regions</option>
-          {% for r in filter_options.region %}<option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ fmt.region(r) }}</option>{% endfor %}
+          <option value="" data-href="?period={{ period }}{% if filters.brand %}&brand={{ filters.brand|urlencode }}{% endif %}">All regions</option>
+          {% for r in filter_options.region %}<option value="{{ r }}" {% if filters.region == r %}selected{% endif %} data-href="{{ qs(region=r) }}">{{ fmt.region(r) }}</option>{% endfor %}
         </select>
         <label class="sr-only" for="f-brand">Brand</label>
         <select id="f-brand" name="brand">
-          <option value="">All brands</option>
-          {% for b in filter_options.brand %}<option value="{{ b }}" {% if filters.brand == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+          <option value="" data-href="?period={{ period }}{% if filters.region %}&region={{ filters.region|urlencode }}{% endif %}">All brands</option>
+          {% for b in filter_options.brand %}<option value="{{ b }}" {% if filters.brand == b %}selected{% endif %} data-href="{{ qs(brand=b) }}">{{ b }}</option>{% endfor %}
         </select>
-        <button type="submit" class="btn-sec apply">Apply</button>
+        {% if not static_export %}<button type="submit" class="btn-sec apply">Apply</button>{% endif %}
       </form>
       {% if filters %}
       <div class="filters" aria-label="Active filters">
@@ -245,7 +246,7 @@
   {% endif %}
 
   <section class="card c-weak" id="sec-weak" aria-labelledby="h-weak">
-    <div class="card-head"><h2 id="h-weak">{{ icon('store') }} {{ weak|length }} weakest outlets</h2><span class="meta">% of type median</span><a class="hlink" href="/export/weakest.csv{{ qs() }}">CSV</a><button type="button" class="link hlink" data-open="def-drawer" aria-haspopup="dialog">Method</button>{{ info('Outlet net sales divided by the median of outlets of the same type (Grosir, Minimarket, Toko Kelontong, Warung). Lowest share = weakest. Triangle = data note. Calendar = download a visit (.ics), copy = task text for the salesman.') }}</div>
+    <div class="card-head"><h2 id="h-weak">{{ icon('store') }} {{ weak|length }} weakest outlets</h2><span class="meta">% of type median</span><a class="hlink" href="/export/weakest.csv{{ qs() }}" download="dua-kelinci-weakest-{{ period }}.csv">CSV</a><button type="button" class="link hlink" data-open="def-drawer" aria-haspopup="dialog">Method</button>{{ info('Outlet net sales divided by the median of outlets of the same type (Grosir, Minimarket, Toko Kelontong, Warung). Lowest share = weakest. Triangle = data note. Calendar = download a visit (.ics), copy = task text for the salesman.') }}</div>
     {% if weak %}
     <table class="wt">
       <thead class="sr-only"><tr><th scope="col">Rank</th><th scope="col">Outlet</th><th scope="col">Percent of type median</th><th scope="col">Change</th><th scope="col">Data note</th><th scope="col">Actions</th></tr></thead>
@@ -321,21 +322,30 @@
     <button type="button" class="btn-sec" id="copy-btn" data-copy-target="tg-text" data-status="tg-status">{{ icon('copy', size=16) }} Copy</button>
     <a class="btn-sec" href="/summary/print{{ qs() }}" target="_blank" rel="noopener">{{ icon('printer', size=16) }} Print</a>
   </div>
-  <p id="tg-status" class="small" role="status" aria-live="polite">{% if not telegram_enabled %}Telegram is not set up: copy and paste into the group.{% endif %}</p>
+  <p id="tg-status" class="small" role="status" aria-live="polite">{% if static_export %}Sending needs the local app with a Telegram bot: copy and paste into the group.{% elif not telegram_enabled %}Telegram is not set up: copy and paste into the group.{% endif %}</p>
 </dialog>
 {% endif %}
 
 {% if ds %}
-<dialog id="chat-drawer" class="drawer" aria-labelledby="chat-title">
+<dialog id="chat-drawer" class="drawer" aria-labelledby="chat-title"{% if static_export %} data-answers="/static/chat-answers.json"{% endif %}>
   <div class="drawer-head"><h2 id="chat-title">{{ icon('message-circle', size=16) }} Ask the data</h2><button type="button" class="close" data-close aria-label="Close">&times;</button></div>
+  {% if static_export %}
+  <p class="small">Static export: the example questions show answers the offline engine gave when this site was built. They cover the whole file, not the filters of this view. The engine reads Indonesian questions and answers in Indonesian.</p>
+  <form id="chat-form" class="row" autocomplete="off">
+    <label class="chat-local" for="chat-q">Free questions need the local app</label>
+    <input id="chat-q" name="question" disabled>
+    <button type="submit" class="btn-sec" disabled>Ask</button>
+  </form>
+  {% else %}
   <p class="small">Answers use only the numbers in this file, within your access. {{ 'AI mode (Claude) with number checks.' if chat_mode == 'llm' else 'Offline mode: rules and templates, no API key.' }} The offline engine reads Indonesian questions and answers in Indonesian.</p>
   <form id="chat-form" class="row" autocomplete="off">
     <label class="sr-only" for="chat-q">Question</label>
     <input id="chat-q" name="question" maxlength="{{ settings.chat_max_question_chars }}" placeholder="e.g. brand mana yang turun paling dalam?" required>
     <button type="submit" class="btn-sec">Ask</button>
   </form>
+  {% endif %}
   <div class="chips" aria-label="Example questions">
-    {% for q in ['Penjualan per region bulan Oktober', '5 outlet terlemah', 'Region mana yang turun paling dalam?', 'Berapa penjualan Sukro di Jawa Timur?', 'Kualitas data'] %}
+    {% for q in views.CHAT_EXAMPLES %}
     <button type="button" class="chip" data-q="{{ q }}">{{ q }}</button>
     {% endfor %}
   </div>
@@ -380,7 +390,10 @@
     <table class="tbl"><thead><tr><th scope="col">Id</th><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col" class="num">Rows</th><th scope="col">Action</th></tr></thead>
     <tbody>{% for r in rules %}<tr><td class="mono">{{ r.rule_id }}</td><td>{{ TITLE_EN[r.rule_id] }}</td><td>{{ SEVERITY_ID[r.severity] }}</td><td class="num">{{ rule_stats[r.rule_id].rows }}</td><td>{{ ACTION_ID[r.action] }}</td></tr>{% endfor %}</tbody></table>
   </details>
-  {% if user.can_upload() %}
+  {% if static_export %}
+  <h3>Upload another file</h3>
+  <p class="small">Uploading needs the local app (see the page footer).</p>
+  {% elif user.can_upload() %}
   <h3>Upload another file</h3>
   {% include "_upload.html" %}
   {% if ds.source.origin == 'upload' %}<form method="post" action="/dataset/reset" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button type="submit" class="link">Back to sales.csv</button></form>{% endif %}
