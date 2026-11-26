@@ -1,5 +1,5 @@
-"""Build the GitHub Pages showcase into _site/: the page in site/, the 2x shot, the motion videos,
-and a static snapshot of the dashboard exported from the running app (default view, real data).
+"""Build the GitHub Pages site into _site/: one page, the static snapshot of the dashboard exported
+from the running app (default view, real data). The shot and the motion GIFs live in the README only.
 
 In the snapshot every control that needs the server (period, filters, chat, upload, Telegram send,
 print, .ics, CSV, links to filtered views and outlet pages) is disabled or turned into plain text,
@@ -73,9 +73,7 @@ a:not([href]):hover, a:not([href]):hover * { background: none; text-decoration: 
 
 def main() -> None:
     shutil.rmtree(OUT, ignore_errors=True)
-    shutil.copytree(ROOT / "site", OUT)
-    shutil.copy(ROOT / "docs/img/shot-2x-1920x1600.png", OUT / "media/shot-2x-1920x1600.png")
-    dash = OUT / "dashboard"
+    dash = OUT
     for sub in ("fonts", "img", "vendor/lucide"):
         shutil.copytree(STATIC / sub, dash / "static" / sub)
     shutil.copy(STATIC / "app.js", dash / "static/app.js")

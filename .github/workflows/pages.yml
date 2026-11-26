@@ -1,7 +1,7 @@
 name: pages
 
-# Static showcase on GitHub Pages: the 2x shot, the motion videos and a static snapshot of the
-# dashboard exported from the app (scripts/showcase/build_site.py). Published from main.
+# GitHub Pages: one page, a static snapshot of the dashboard exported from the app
+# (scripts/showcase/build_site.py). The shot and the motion GIFs live in the README. Published from main.
 on:
   push:
     branches: [main]
@@ -26,7 +26,7 @@ jobs:
       - run: uv python install 3.12
       - run: uv sync --all-extras --frozen
       - run: uv run playwright install --with-deps chromium
-      - name: Build the showcase site
+      - name: Build the one-page dashboard snapshot
         run: uv run python scripts/showcase/build_site.py
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
