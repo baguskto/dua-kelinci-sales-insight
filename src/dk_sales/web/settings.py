@@ -79,6 +79,8 @@ class Settings:
     oidc_client_secret: str = ""
     oidc_redirect_uri: str = ""
     oidc_role_claim: str = "roles"
+    # Only scripts/showcase/build_site.py sets this: pages for the static GitHub Pages export (no server behind them).
+    static_export: bool = False
 
     @property
     def is_production(self) -> bool:

@@ -57,6 +57,16 @@ def line_chart(prev: list[float], curr: list[float], prev_label: str, curr_label
     }
 
 
+# Example questions in the chat drawer; the static export saves the engine's answer to each of them.
+CHAT_EXAMPLES = (
+    "Penjualan per region bulan Oktober",
+    "5 outlet terlemah",
+    "Region mana yang turun paling dalam?",
+    "Berapa penjualan Sukro di Jawa Timur?",
+    "Kualitas data",
+)
+
+
 def greeting(user, now: datetime) -> str:
     """'Good morning, Head of Sales' for a signed-in role; a neutral title in local mode."""
     from dk_sales.web.auth import ROLE_LABELS

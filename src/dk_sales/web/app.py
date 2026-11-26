@@ -63,6 +63,8 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         ACTION_ID=ACTION_EN,
         TITLE_EN=TITLE_EN,
         version=__version__,
+        static_export=settings.static_export,
+        repo_url="https://github.com/baguskto/dua-kelinci-sales-insight",
     )
     summary_cache: dict[tuple, summ.Summary] = {}
     recon_cache: dict = {}
