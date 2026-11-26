@@ -92,7 +92,18 @@ def main(src: str) -> None:
         if len(pts) >= 4:
             parts.append("M" + "L".join(f"{x} {y}" for x, y in pts) + "Z")
     w, h = (BBOX[1] - BBOX[0]) * SCALE, (BBOX[3] - BBOX[2]) * SCALE
-    OUT.write_text(json.dumps({"source": "Natural Earth 1:50m land (public domain), world-atlas 2.0.2", "bbox": BBOX, "scale": SCALE, "width": w, "height": h, "path": "".join(parts)}))
+    OUT.write_text(
+        json.dumps(
+            {
+                "source": "Natural Earth 1:50m land (public domain), world-atlas 2.0.2",
+                "bbox": BBOX,
+                "scale": SCALE,
+                "width": w,
+                "height": h,
+                "path": "".join(parts),
+            }
+        )
+    )
     print(f"{OUT}: {len(parts)} shapes, {OUT.stat().st_size} bytes")
 
 

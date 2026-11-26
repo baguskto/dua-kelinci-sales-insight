@@ -223,6 +223,25 @@
       {% for b in movers %}{% set d = fmt.rpm_parts(b.change, true) %}<li><a href="{{ qs(brand=b.key) }}" title="{{ b.key }}: {{ fmt.rpm(b.prev) }} &rarr; {{ fmt.rpm(b.curr) }} ({{ fmt.rpm(b.change, true) }})"><span class="mv-l">{{ b.key }}</span>{{ dbar(b.change, mmx, 'mv-bar') }}<span class="dl"><span class="ar" aria-hidden="true">{{ '&#9650;'|safe if b.change > 0 else '&#9660;'|safe }}</span><span class="sr-only">{{ 'up' if b.change > 0 else 'down' }} </span>{{ d[0] }}{{ d[1] }}</span></a></li>{% endfor %}
     </ul>
   </section>
+  {% else %}
+  {# A period without an earlier month to compare with (the first month, or a one-month file): totals only. #}
+  <section class="card c-net" aria-labelledby="h-net">
+    <div class="card-head"><h2 id="h-net">{{ icon('receipt') }} Net sales</h2><span class="meta">{{ period_label }}</span></div>
+    <p class="v">{{ big(kpis.net_sales_idr) }}</p>
+    <p class="s"><span class="vs">No earlier month to compare with</span></p>
+  </section>
+  <section class="card" aria-labelledby="h-brand1">
+    {% set b1 = brand[0] %}
+    <div class="card-head"><h2 id="h-brand1">{{ icon('tag') }} Top brand</h2><span class="meta">{{ period_label }}</span></div>
+    <p class="v"><span class="n">{{ '%.1f'|format(b1.share_pct or 0) }}</span><span class="u">%</span></p>
+    <p class="s"><span class="vs">{{ b1.key }}, {{ fmt.rpm(b1.value) }}</span></p>
+  </section>
+  <section class="card" aria-labelledby="h-reg1">
+    {% set r1 = region[0] %}
+    <div class="card-head"><h2 id="h-reg1">{{ icon('map-pin') }} Top region</h2><span class="meta">{{ period_label }}</span></div>
+    <p class="v"><span class="n">{{ '%.1f'|format(r1.share_pct or 0) }}</span><span class="u">%</span></p>
+    <p class="s"><span class="vs">{{ fmt.region(r1.key) }}, {{ fmt.rpm(r1.value) }}</span></p>
+  </section>
   {% endif %}
 
   <section class="card c-weak" id="sec-weak" aria-labelledby="h-weak">

@@ -53,7 +53,17 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
     throttle = auth.LoginThrottle()
     local_users = auth.load_local_users(settings.local_users_file) if settings.auth_mode == "local" and settings.local_users_file else {}
     templates = Jinja2Templates(directory=str(HERE / "templates"))
-    templates.env.globals.update(fmt=fmt, an=an, views=views, icon=icons.icon, TYPE_ICON=icons.OUTLET_TYPE_ICON, SEVERITY_ID=SEVERITY_EN, ACTION_ID=ACTION_EN, TITLE_EN=TITLE_EN, version=__version__)
+    templates.env.globals.update(
+        fmt=fmt,
+        an=an,
+        views=views,
+        icon=icons.icon,
+        TYPE_ICON=icons.OUTLET_TYPE_ICON,
+        SEVERITY_ID=SEVERITY_EN,
+        ACTION_ID=ACTION_EN,
+        TITLE_EN=TITLE_EN,
+        version=__version__,
+    )
     summary_cache: dict[tuple, summ.Summary] = {}
     recon_cache: dict = {}
 
@@ -339,7 +349,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         if filters:
             label = (label + " " if label else "") + ", ".join(filters.values())
         s = build_summary(ds, user, period, fact if filters else None, label if filters else None)
-        st = an.story(fact, ds.dim_outlet, period)
+        story = an.story(fact, ds.dim_outlet, period)
         cum = {c["month"]: c for c in an.cumulative(fact, ds.fact["date"].max())}
         now = datetime.now(views.WIB)
         ctx.update(
@@ -348,14 +358,18 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
             mom=an.mom(fact),
             region=region,
             brand=brand,
-            st=st,
-            bridge=views.waterfall(st) if st else [],
-            brand_rows=st["brands"] if st else [],
-            bmap=views.bubble_map(st["regions"]) if st else None,
-            days={m: views.day_tiles(m) for m in ((st["prev_month"], st["curr_month"]) if st else ())},
+            st=story,
+            bridge=views.waterfall(story) if story else [],
+            brand_rows=story["brands"] if story else [],
+            bmap=views.bubble_map(story["regions"]) if story else None,
+            days={m: views.day_tiles(m) for m in ((story["prev_month"], story["curr_month"]) if story else ())},
             summary_checked=guard.check(s.text, s.facts, s.pct_facts, lang=s.lang).checked,
             rule_count=len(RULES),
-            line=views.line_chart(cum[st["prev_month"]]["values"], cum[st["curr_month"]]["values"], fmt.mon(st["prev_month"]), fmt.mon(st["curr_month"])) if st else None,
+            line=views.line_chart(
+                cum[story["prev_month"]]["values"], cum[story["curr_month"]]["values"], fmt.mon(story["prev_month"]), fmt.mon(story["curr_month"])
+            )
+            if story
+            else None,
             weak=weak,
             summary=s,
             tasks={w.outlet_id: views.visit_task(w, fmt.period_en(period, months)) for w in weak},
@@ -417,7 +431,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         return Response(
             body,
             media_type="text/calendar; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="kunjungan-{outlet_id}.ics"'},
+            headers={"Content-Disposition": f'attachment; filename="visit-{outlet_id}.ics"'},
         )
 
     def auth_ok_outlet(outlet_id: str) -> bool:
@@ -489,9 +503,7 @@ def create_app(settings: Settings | None = None, llm_client=None, telegram_post=
         await require_csrf(request)
         key = f"{user.username}|{client_ip(request)}"
         if not chat_limiter.hit(key):
-            return JSONResponse(
-                {"error": "Too many questions. Wait a moment."}, status_code=429, headers={"Retry-After": str(chat_limiter.retry_after(key))}
-            )
+            return JSONResponse({"error": "Too many questions. Wait a moment."}, status_code=429, headers={"Retry-After": str(chat_limiter.retry_after(key))})
         try:
             body = await request.json()
         except ValueError:

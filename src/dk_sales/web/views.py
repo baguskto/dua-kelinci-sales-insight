@@ -43,19 +43,17 @@ def line_chart(prev: list[float], curr: list[float], prev_label: str, curr_label
         x, y = xy(i, v)
         points.append({"x": x, "y": y, "day": i + 1, "curr": fmt.rpm(v), "prev": fmt.rpm(pv[i]) if pv else ""})
     return {
-        "width": width, "height": height, "bottom": bottom, "prev": line(prev), "curr": c, "band": band,
-        "grid": [{"x": xy(d - 1, 0)[0], "day": d} for d in days], "hl": points[hl] if points else None,
-        "points": points, "prev_label": prev_label, "curr_label": curr_label,
-    }
-
-
-def bullet(value: float, median: float, width: int = 220) -> dict:
-    """Geometry for a bullet bar: the outlet's value against the median of its peers."""
-    top = max(value, median) * 1.1 or 1
-    return {
         "width": width,
-        "bar": round(max(value, 0) / top * width, 1),
-        "median": round(median / top * width, 1),
+        "height": height,
+        "bottom": bottom,
+        "prev": line(prev),
+        "curr": c,
+        "band": band,
+        "grid": [{"x": xy(d - 1, 0)[0], "day": d} for d in days],
+        "hl": points[hl] if points else None,
+        "points": points,
+        "prev_label": prev_label,
+        "curr_label": curr_label,
     }
 
 
@@ -153,7 +151,7 @@ def visit_ics(w, period_label: str, day: date, stamp: datetime) -> str:
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
-        f"UID:kunjungan-{w.outlet_id}-{day:%Y%m%d}@penjualan-dua-kelinci",
+        f"UID:visit-{w.outlet_id}-{day:%Y%m%d}@dua-kelinci-sales",
         f"DTSTAMP:{stamp.astimezone(UTC):%Y%m%dT%H%M%SZ}",
         f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
         f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
@@ -223,14 +221,16 @@ def bubble_map(regions: list[dict], rmax: float = 15.0) -> dict:
         if r["key"] not in REGION_LONLAT:
             continue
         lon, lat = REGION_LONLAT[r["key"]]
-        pts.append({**r, "x": round((lon - lon0) * k, 1), "y": round((lat1 - lat) * k, 1), "r": round(rmax * (max(r["curr"], 0) / top) ** 0.5, 1), "java": lat < -5})
+        pts.append(
+            {**r, "x": round((lon - lon0) * k, 1), "y": round((lat1 - lat) * k, 1), "r": round(rmax * (max(r["curr"], 0) / top) ** 0.5, 1), "java": lat < -5}
+        )
     java = sorted((p for p in pts if p["java"]), key=lambda p: p["x"])
     # Java's regions sit closer together than their circles are wide: nudge them apart along the
-    # island (left to right, 3 units apart), then re-centre the row on the original positions.
+    # island (left to right, 6 units apart), then re-centre the row on the original positions.
     if java:
         centre = sum(p["x"] for p in java) / len(java)
         for a, b in zip(java, java[1:], strict=False):
-            b["x"] = max(b["x"], round(a["x"] + max(a["r"], 3) + max(b["r"], 3) + 3, 1))
+            b["x"] = max(b["x"], round(a["x"] + max(a["r"], 3) + max(b["r"], 3) + 6, 1))
         shift = centre - sum(p["x"] for p in java) / len(java)
         for p in java:
             p["x"] = round(p["x"] + shift, 1)

@@ -91,18 +91,20 @@ def test_summary_leads_with_the_insight_and_stays_short(ds):
     s = summary.build(ds.fact, ds.dim_outlet)
     assert len(s.text) <= summary.TARGET_CHARS
     assert "\n" not in s.text and "*" not in s.text and "|" not in s.text
-    assert s.text.startswith("Dua Kelinci, Okt vs Sep: net Rp 878,4 jt (+3,6%), tapi tanpa Grosir Lancar Jaya (+Rp 47,7 jt) turun 2,0%")
-    for must in ["per hari kerja \u22120,2%", "4 dari 6 region turun", "Jawa Barat \u2212Rp 23,2 jt", "Pilus \u221212,2%", "OUT1003", "OUT1035", "di luar urutan"]:
+    assert s.text.startswith("Dua Kelinci, Oct vs Sep: net sales Rp 878.4M (+3.6%), but without Grosir Lancar Jaya (+Rp 47.7M) down 2.0%")
+    for must in ["per trading day \u22120.2%", "4 of 6 regions fell", "West Java \u2212Rp 23.2M", "Pilus \u221212.2%", "OUT1003", "OUT1035", "out-of-sequence"]:
         assert must in s.text
-    assert guard.check(s.text, s.facts, s.pct_facts).ok
+    assert guard.check(s.text, s.facts, s.pct_facts, lang="en").ok
+    # The same text read with Indonesian units (M = miliar) must not pass: the language matters.
+    assert not guard.check(s.text, s.facts, s.pct_facts).ok
 
 
 def test_summary_scoped(ds):
     s = summary.build(an.Scope(regions=frozenset({"Jawa Barat"})).apply(ds.fact), ds.dim_outlet, "Region Jawa Barat")
-    assert "Jabodetabek" not in s.text and s.text.startswith("Dua Kelinci Region Jawa Barat, Okt vs Sep: net Rp 143,9 jt (\u221213,9%)")
-    assert guard.check(s.text, s.facts, s.pct_facts).ok
+    assert "Jabodetabek" not in s.text.split("visit:")[0] and s.text.startswith("Dua Kelinci Region Jawa Barat, Oct vs Sep: net sales Rp 143.9M (\u221213.9%)")
+    assert guard.check(s.text, s.facts, s.pct_facts, lang="en").ok
     sep = summary.build(ds.fact, ds.dim_outlet, "", "2026-09")
-    assert sep.text.startswith("Dua Kelinci, September 2026: net Rp 847,5 jt.") and guard.check(sep.text, sep.facts, sep.pct_facts).ok
+    assert sep.text.startswith("Dua Kelinci, September 2026: net sales Rp 847.5M.") and guard.check(sep.text, sep.facts, sep.pct_facts, lang="en").ok
 
 
 @pytest.mark.parametrize(
@@ -204,8 +206,17 @@ def test_story_needs_a_previous_month(ds):
 
 
 def test_dashboard_number_format():
-    assert fmt.jt(878_448_600) == "Rp 878,4 jt"
-    assert fmt.jt(-23_181_700, signed=True) == "\u2212Rp 23,2 jt"
-    assert fmt.jt(47_666_200, signed=True) == "+Rp 47,7 jt"
-    assert fmt.jt(1_725_966_000) == "Rp 1.726,0 jt"
-    assert fmt.spct(-0.19) == "\u22120,2%" and fmt.spct(3.65) == "+3,6%" and fmt.spct(0.01) == "0,0%"
+    assert fmt.rpm(878_448_600) == "Rp 878.4M"
+    assert fmt.rpm(-23_181_700, signed=True) == "\u2212Rp 23.2M"
+    assert fmt.rpm(47_666_200, signed=True) == "+Rp 47.7M"
+    assert fmt.rpm(1_725_966_000) == "Rp 1,726.0M"
+    assert fmt.spct(-0.19) == "\u22120.2%" and fmt.spct(3.65) == "+3.6%" and fmt.spct(0.01) == "0.0%"
+    assert fmt.num(4427) == "4,427" and fmt.epct(8.647) == "8.6%"
+    assert fmt.period_en("all", ["2026-09", "2026-10"]) == "Sep-Oct 2026" and fmt.mon_long("2026-10") == "October 2026"
+    assert fmt.region("Jawa Barat") == "West Java" and fmt.region("Kalimantan") == "Kalimantan" and fmt.region_short("Jawa Timur") == "E. Java"
+
+
+def test_guard_reads_english_units():
+    assert guard.check("Oct Rp 878.4M, down 2.0%", [878_448_600], [-2.04], lang="en").ok
+    assert not guard.check("Oct Rp 878.4M", [878_448_600]).ok  # Indonesian: M = miliar
+    assert guard.check("Total Rp 1.7B", [1_725_966_000], lang="en").ok
