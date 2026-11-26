@@ -230,14 +230,17 @@ a.wf-lab:hover .t { text-decoration: underline; }
 .wt th, .wt td { padding: 2px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-weight: 400; }
 .wt tbody tr:last-child > * { border-bottom: 0; }
 .w-rank { color: var(--muted); width: 18px; }
-.w-o { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; min-width: 0; }
+/* The name column takes what is left (max-width: 0 drops it from the min-content sum) and ends in an ellipsis,
+   so a long change value like "+1410%" never pushes the meter label into the next cell. Full name in title. */
+.wt th[scope="row"] { max-width: 0; width: 100%; }
+.w-o { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; min-width: 0; max-width: 100%; }
 .w-o:hover .w-n { text-decoration: underline; }
-.w-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: middle; }
+.w-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; min-width: 0; display: inline-block; vertical-align: middle; }
 .w-ic { display: inline-grid; place-items: center; color: var(--muted); }
 .w-b { white-space: nowrap; }
-.w-b .tm { display: inline-block; width: 117px; vertical-align: middle; }
+.w-b .tm { display: inline-block; width: 117px; max-width: none; vertical-align: middle; } /* fixed, so the name column absorbs the squeeze */
 .w-idx { display: inline-block; width: 34px; text-align: right; font-size: 13px; }
-.w-d { font-size: 13px; }
+.w-d { font-size: 13px; white-space: nowrap; }
 .w-flag { width: 28px; text-align: center; }
 .w-act { white-space: nowrap; text-align: right; width: 80px; }
 .w-act .btn-sec + .btn-sec { margin-left: 4px; }
@@ -354,16 +357,17 @@ progress { width: 160px; accent-color: var(--accent); }
   .wf-lab .muted { display: none; }
   .wt, .wt tbody { display: block; }
   .c-weak .card-head .meta { display: none; }
-  .wt tr { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; grid-template-areas: "rk o d flag" "rk b b act"; gap: 2px 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .wt tr { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; grid-template-areas: "rk o d d" "rk b flag act"; gap: 2px 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .wt tbody tr:last-child { border-bottom: 0; }
   .wt th, .wt td { border: 0; padding: 0; }
   .wt .w-rank { grid-area: rk; align-self: start; padding-top: 4px; }
   .wt th[scope="row"] { grid-area: o; }
   .wt .w-b { grid-area: b; }
   .wt .w-d { grid-area: d; }
-  .wt .w-flag { grid-area: flag; }
+  .wt .w-flag { grid-area: flag; width: auto; }
+  .wt .info.flag { margin: 0; } /* 44px tap area in the action row, next to .ics and copy, not over them */
   .wt .w-act { grid-area: act; width: auto; text-align: left; }
-  .wt th[scope="row"] { min-width: 0; overflow: hidden; }
+  .wt th[scope="row"] { min-width: 0; max-width: none; width: auto; overflow: hidden; }
   .w-o { max-width: 100%; }
   .w-n { max-width: none; min-width: 0; flex: 1 1 auto; }
   .info { width: 44px; height: 44px; margin: -10px -12px -10px 0; }
